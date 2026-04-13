@@ -1,4 +1,4 @@
-"""01. Custom Agent — specialist and recursive CoT agents."""
+"""01. Custom Agent -- specialist and recursive CoT agents."""
 
 import asyncio
 import streamlit as st
@@ -72,7 +72,47 @@ RecursiveAgent는 Chain-of-Thought(CoT) 패턴으로 질문을 하위 질문으�
 
 
 async def _run_specialist(specialty, question):
-    from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
+    from agentsociety2_lite import CodeGenRouter, AgentSociety
+    from agentsociety2_lite.contrib import SimpleSocialSpace
+    from agentsociety2_lite.agent.base import AgentBase
+    from datetime import datetime
+
+    class SpecialistAgent(AgentBase):
+        def __init__(self, id, profile, specialty, **kw):
+            super().__init__(id=id, profile=profile, **kw)
+            self._specialty = specialty
+
+        def _enhance_prompt(self, question):
+            return (f"You are a specialist in {self._specialty}. "
+                    f"Answer from this perspective: {question}")
+
+        async def ask(self, question, readonly=True):
+            enhanced = self._enhance_prompt(question)
+            return await super().ask(enhanced, readonly=readonly)
+
+        async def reflect_on_specialty(self):
+            question = (
+                f"As a specialist in {self._specialty}, "
+                "what do you consider to be the most important aspects of your field?"
+            )
+            return await super().ask(question, readonly=True)
+
+    agent = SpecialistAgent(id=1, profile={"name": "Dr. Climate", "personality": "scientific"},
+                            specialty=specialty)
+    env = SimpleSocialSpace(agent_id_name_pairs=[(1, "Dr. Climate")])
+    router = CodeGenRouter(env_modules=[env])
+    society = AgentSociety(agents=[agent], env_router=router, start_t=datetime.now())
+    await society.init()
+
+    # Build the enhanced prompt for display, but call ask() which returns a string
+    enhanced = agent._enhance_prompt(question)
+    response = await agent.ask(question)
+    await society.close()
+    return response, enhanced
+
+
+async def _run_reflection(specialty):
+    from agentsociety2_lite import CodeGenRouter, AgentSociety
     from agentsociety2_lite.contrib import SimpleSocialSpace
     from agentsociety2_lite.agent.base import AgentBase
     from datetime import datetime
@@ -84,56 +124,86 @@ async def _run_specialist(specialty, question):
 
         async def ask(self, question, readonly=True):
             enhanced = (f"You are a specialist in {self._specialty}. "
-                       f"Answer from this perspective: {question}")
-            return await super().ask(enhanced, readonly=readonly), enhanced
+                        f"Answer from this perspective: {question}")
+            return await super().ask(enhanced, readonly=readonly)
 
-    agent = SpecialistAgent(id=1, profile={"name": "Dr. Climate", "personality": "scientific"},
+        async def reflect_on_specialty(self):
+            question = (
+                f"As a specialist in {self._specialty}, "
+                "what do you consider to be the most important aspects of your field?"
+            )
+            return await super().ask(question, readonly=True)
+
+    agent = SpecialistAgent(id=1, profile={"name": "Dr. Science", "personality": "curious"},
                             specialty=specialty)
-    env = SimpleSocialSpace(agent_id_name_pairs=[(1, "Dr. Climate")])
-    router = CodeGenRouter(env_modules=[env])
-    society = AgentSociety(agents=[agent], env_router=router, start_t=datetime.now())
-    await society.init()
-    response, enhanced = await agent.ask(question)
-    await society.close()
-    return response, enhanced
-
-
-async def _run_reflection(specialty):
-    from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
-    from agentsociety2_lite.contrib import SimpleSocialSpace
-    from datetime import datetime
-
-    agent = PersonAgent(id=1, profile={"name": "Dr. Science", "personality": "curious"})
     env = SimpleSocialSpace(agent_id_name_pairs=[(1, "Dr. Science")])
     router = CodeGenRouter(env_modules=[env])
     society = AgentSociety(agents=[agent], env_router=router, start_t=datetime.now())
     await society.init()
-    q = f"As a specialist in {specialty}, what do you consider the most important aspects of your field?"
-    response = await society.ask(q)
+    response = await agent.reflect_on_specialty()
     await society.close()
     return response
 
 
 async def _run_cot(question, depth):
-    from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
+    from agentsociety2_lite import CodeGenRouter, AgentSociety
     from agentsociety2_lite.contrib import SimpleSocialSpace
-    from agentsociety2_lite.llm.client import get_client
+    from agentsociety2_lite.agent.base import AgentBase
     import json_repair
     from datetime import datetime
 
-    agent = PersonAgent(id=1, profile={"name": "Deep Thinker", "personality": "analytical"})
+    class RecursiveAgent(AgentBase):
+        """An agent that uses chain-of-thought reasoning by recursively
+        decomposing questions into sub-questions."""
+
+        async def ask(self, question, readonly=True, depth=2):
+            if depth <= 0:
+                return await super().ask(question, readonly=readonly)
+
+            # Step 1: ask the agent to break down the question
+            breakdown_prompt = (
+                f"Break down this question into sub-questions: {question}\n"
+                "Respond with a JSON object containing a 'sub_questions' array of strings. Max 3."
+            )
+            breakdown = await super().ask(breakdown_prompt, readonly=True)
+
+            # Parse sub-questions
+            try:
+                parsed = json_repair.loads(breakdown)
+                sub_questions = parsed.get("sub_questions", [])[:3]
+            except Exception:
+                sub_questions = []
+
+            if not sub_questions:
+                return await super().ask(question, readonly=readonly)
+
+            # Step 2: answer each sub-question recursively at reduced depth
+            sub_answers = []
+            for sq in sub_questions:
+                answer = await self.ask(sq, readonly=True, depth=depth - 1)
+                sub_answers.append(f"Q: {sq}\nA: {answer}")
+
+            # Step 3: synthesize final answer
+            synthesis_prompt = (
+                f"Original question: {question}\n\n"
+                f"Sub-question analysis:\n" + "\n".join(sub_answers) + "\n\n"
+                "Based on the above analysis, provide a comprehensive answer "
+                "to the original question."
+            )
+            return await super().ask(synthesis_prompt, readonly=readonly)
+
+    agent = RecursiveAgent(id=1, profile={"name": "Deep Thinker", "personality": "analytical"})
     env = SimpleSocialSpace(agent_id_name_pairs=[(1, "Deep Thinker")])
     router = CodeGenRouter(env_modules=[env])
     society = AgentSociety(agents=[agent], env_router=router, start_t=datetime.now())
     await society.init()
 
-    # Decompose
-    llm = get_client()
-    breakdown = await llm.complete(
+    # First, do the decomposition at depth=1 to capture sub-questions for display
+    breakdown_prompt = (
         f"Break down this question into sub-questions: {question}\n"
-        f"Return a JSON with a 'sub_questions' array of strings. Max 3.",
-        system="You are an analytical thinker."
+        "Respond with a JSON object containing a 'sub_questions' array of strings. Max 3."
     )
+    breakdown = await agent.ask(breakdown_prompt, readonly=True, depth=0)
 
     sub_questions = []
     try:
@@ -143,17 +213,19 @@ async def _run_cot(question, depth):
         sqs = []
 
     for sq in sqs:
-        answer = await society.ask(sq)
+        answer = await agent.ask(sq, readonly=True, depth=max(0, depth - 1))
         sub_questions.append({"question": sq, "answer": answer})
 
     if sub_questions:
         context = "\n".join(f"Q: {s['question']}\nA: {s['answer']}" for s in sub_questions)
-        synthesis = await llm.complete(
-            f"Original: {question}\n\nSub-analysis:\n{context}\n\nProvide comprehensive answer.",
-            system="Synthesize the analysis."
+        synthesis = await agent.ask(
+            f"Original: {question}\n\nSub-analysis:\n{context}\n\n"
+            "Provide a comprehensive answer to the original question.",
+            readonly=True,
+            depth=0,
         )
     else:
-        synthesis = await society.ask(question)
+        synthesis = await agent.ask(question, readonly=True, depth=depth)
 
     await society.close()
     return {"sub_questions": sub_questions, "synthesis": synthesis}
