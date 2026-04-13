@@ -23,7 +23,27 @@ WEATHER_SCHEDULE = [
 
 def render():
     st.header("Hurricane Impact (Paper Sec 7.5)")
-    st.caption("Branch: `paper-hurricane` | \ud5c8\ub9ac\ucf00\uc778 \ub3c4\ub9ac\uc548 \uc774\ub3d9\uc131 \ucda9\uaca9")
+    st.caption("Branch: `paper-hurricane`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 7.5 "External Shocks of Hurricane"를 재현한 실험입니다.
+논문에서는 2019년 허리케인 도리안이 사우스캐롤라이나주 콜럼비아 시의 주민 이동성에
+미친 영향을 시뮬레이션하고, 실제 SafeGraph 모빌리티 데이터와 비교 검증했습니다.
+이 실험은 논문 Section 3.3 "Mobility Behaviors"의 이동성 모델과 Section 4.2 "Urban Space"의 도시 환경을 활용합니다.
+
+**논문 결과**: 상륙 전 활동량 70-90%, 상륙 중 약 30%로 급감, 상륙 후 정상 수준으로 회복되었습니다.
+시뮬레이션된 일일 이동 횟수가 실제 SafeGraph 데이터 패턴과 높은 일치도를 보였습니다.
+
+**동작 원리**: 9일간의 허리케인 도리안 날씨 스케줄(상륙 전 3일, 상륙 3일, 상륙 후 3일)을 설정합니다.
+매일 각 에이전트에게 날씨 정보와 허리케인 경보를 알려주고 외출 여부를 결정하게 합니다.
+에이전트의 직업(의료종사자, 학생, 은퇴자 등)과 나이에 따라 같은 악천후에도 다른 결정을 내립니다.
+의료종사자는 허리케인 중에도 출근하는 경향이 있어 실제 essential worker 패턴과 유사합니다.
+
+**해결하는 문제**: 자연재해 시 도시 이동성 변화를 예측하여 재난 대응 계획에 활용합니다.
+대피 명령의 효과, 필수 인력의 이동 패턴, 회복 속도 등을 사전에 시뮬레이션할 수 있습니다.
+실제 모빌리티 데이터와의 비교를 통해 LLM 에이전트 시뮬레이션의 현실 반영도를 검증합니다.
+        """)
 
     n_agents = st.number_input("Agents (Columbia SC residents)", 6, 20, 10)
 

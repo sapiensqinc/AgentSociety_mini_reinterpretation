@@ -27,7 +27,27 @@ def _generate_profiles(n=8, seed=42):
 
 def render():
     st.header("UBI Experiment (Paper Sec 7.4)")
-    st.caption("Branch: `paper-ubi` | \ubcf4\ud3b8\uc801 \uae30\ubcf8\uc18c\ub4dd \uc815\ucc45 \uc2e4\ud5d8")
+    st.caption("Branch: `paper-ubi`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 7.4 "Universal Basic Income"을 재현한 실험입니다.
+논문에서는 텍사스주 주민 프로필 기반으로 월 $1,000 UBI 지급 시나리오를 시뮬레이션하여,
+소비 수준, 저축, 우울증(행복도) 변화를 UBI 미지급 조건과 비교했습니다.
+이 실험은 논문 Section 4.4 "Economic Space"의 경제 환경 모듈과 연동됩니다.
+
+**논문 결과**: UBI 지급 시 소비 수준이 증가하고 우울증 수준이 감소했습니다.
+에이전트 인터뷰에서는 금리에 대한 우려, 장기적 혜택에 대한 기대,
+저축 습관 변화 등 현실적인 반응이 관찰되었습니다.
+
+**동작 원리**: 8명의 에이전트에게 다양한 직업(소매업, 교사, 간호사 등)과
+소득 수준($1,200~$8,000)을 부여합니다. 매월 가처분소득(급여 + UBI)을 알려주고
+지출액과 행복도를 결정하도록 합니다. 응답에서 금액과 행복도 점수를 파싱하여 경제 지표를 추적합니다.
+UBI 조건에서는 추가로 정책에 대한 인터뷰를 실시합니다.
+
+**해결하는 문제**: 대규모 정책 실험이 현실에서 불가능할 때 LLM 에이전트로 사전 시뮬레이션합니다.
+UBI 외에도 최저임금 인상, 세금 정책 등 다양한 경제 정책의 효과를 실험 전에 예측하는 용도로 확장할 수 있습니다.
+        """)
 
     n_agents = st.number_input("Agents", 4, 16, 8)
     ubi_amount = st.number_input("UBI Amount ($/month)", 0, 5000, 1000, 100)

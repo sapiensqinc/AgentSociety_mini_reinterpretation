@@ -7,7 +7,27 @@ from app.config import require_api_key
 
 def render():
     st.header("02. Custom Environment Module")
-    st.caption("Branch: `examples-basics` | \ucee4\uc2a4\ud140 \ud658\uacbd \ubaa8\ub4c8 + @tool \ub370\ucf54\ub808\uc774\ud130")
+    st.caption("Branch: `examples-basics`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 4 "Real-world Societal Environment"에서 다루는 환경 모듈 설계를 시연합니다.
+논문에서는 도시 공간(Urban Space, Section 4.2), 사회 공간(Social Space, Section 4.3),
+경제 공간(Economic Space, Section 4.4)을 별도 시뮬레이터로 구현했지만,
+v2 코드에서는 `EnvBase` 클래스를 상속하고 `@tool` 데코레이터로 메서드를 등록하는 패턴으로 단순화했습니다.
+
+**원본 코드 위치**: `agentsociety2/env/env_base.py`의 `EnvBase` 클래스와 `@tool` 데코레이터가 핵심입니다.
+원본에서는 `SimpleSocialSpace`, `EconomySpace`, `MobilitySpace` 등이 이 패턴으로 구현되어 있습니다.
+
+**동작 원리**: `@tool(readonly=True)` 데코레이터가 붙은 메서드는 LLM이 호출 가능한 함수로 자동 등록됩니다.
+메서드의 이름, docstring, 타입 힌트가 JSON Schema로 변환되어 Gemini의 Function Calling에 전달됩니다.
+`readonly=True`인 도구는 `ask()`(조회)에서만, `readonly=False`인 도구는 `intervene()`(개입)에서 호출됩니다.
+이 읽기/쓰기 분리는 실험 중 의도치 않은 환경 변경을 방지하기 위한 안전장치입니다.
+
+**해결하는 문제**: 연구자가 자신만의 실험 환경을 빠르게 정의할 수 있게 합니다.
+Python 클래스 하나로 날씨, 경제, 소셜 네트워크 등 어떤 환경이든 만들 수 있고,
+LLM이 자연어 질의를 자동으로 적절한 도구 호출로 변환합니다.
+        """)
 
     from agentsociety2_lite.env import EnvBase, tool, CodeGenRouter
 
