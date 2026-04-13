@@ -9,7 +9,9 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env.local first (user secrets), then .env (defaults). .env.local takes priority.
+load_dotenv(".env.local", override=True)
+load_dotenv(".env", override=False)
 
 # Global singleton
 _client: "GeminiClient | None" = None
