@@ -8,7 +8,26 @@ from app.config import require_api_key
 
 def render():
     st.header("01. Prisoner's Dilemma")
-    st.caption("Branch: `examples-games` | \uace0\uc804 \uac8c\uc784\uc774\ub860 \uc2dc\ub098\ub9ac\uc624")
+    st.caption("Branch: `examples-games`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 본문에는 게임이론 실험이 포함되어 있지 않습니다. 이 모듈은 v2 코드에서
+새로 추가된 `agentsociety2/contrib/env/` 디렉토리의 게임이론 환경 중 하나입니다.
+논문 Section 3.4 "Social Behaviors"에서 에이전트 간 상호작용의 기초가 되는
+협력/배신 의사결정 메커니즘을 가장 단순한 형태로 시연합니다.
+
+**원본 코드 위치**: `agentsociety2/contrib/env/prisoners_dilemma.py`에 `PrisonersDilemma` 환경이 구현되어 있습니다.
+원본에서는 보수 매트릭스를 `@tool`로 제공하여 LLM 에이전트가 게임 규칙을 이해한 뒤 전략적으로 결정하도록 합니다.
+
+**동작 원리**: 두 에이전트(Alice, Bob)에게 각각 독립적으로 "COOPERATE 또는 DEFECT를 선택하라"고 질의합니다.
+에이전트는 자신의 성격 프로필(strategic/trusting)과 게임 규칙을 고려하여 결정하고, 그 근거를 설명합니다.
+두 결정이 모인 뒤 보수 매트릭스에 따라 결과가 계산되고, 에이전트에게 결과를 알려주어 회고하게 합니다.
+
+**해결하는 문제**: LLM 에이전트가 전략적 상황에서 어떻게 추론하는지를 관찰합니다.
+내쉬 균형(둘 다 배신)과 파레토 최적(둘 다 협력)의 괴리를 LLM이 인식하는지,
+에이전트의 성격이 실제로 결정에 영향을 미치는지를 실험할 수 있습니다.
+        """)
 
     col_setup, col_matrix = st.columns([1, 1])
 

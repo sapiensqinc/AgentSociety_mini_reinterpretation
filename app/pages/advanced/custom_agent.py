@@ -7,7 +7,24 @@ from app.config import require_api_key
 
 def render():
     st.header("01. Custom Agent")
-    st.caption("Branch: `examples-advanced` | AgentBase \uc0c1\uc18d \ucee4\uc2a4\ud130\ub9c8\uc774\uc9d5")
+    st.caption("Branch: `examples-advanced`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 3 전체, 특히 Section 3.2 "Emotion, Needs, and Cognition"과
+Section 3.6 "Workflow"에 해당합니다. 논문에서 에이전트는 감정-욕구-인지의 고정 파이프라인을 가졌지만,
+v2 코드에서는 AgentBase를 상속하여 자유롭게 행동 로직을 커스터마이징할 수 있도록 설계가 바뀌었습니다.
+
+**원본 코드 위치**: `agentsociety2/agent/base.py`의 `AgentBase` 클래스를 상속하는 패턴입니다.
+원본에서는 `PersonAgent` 외에도 스킬 기반 확장, 메모리 시스템 연동 등 다양한 커스텀 에이전트를 지원합니다.
+
+**동작 원리**: SpecialistAgent는 `ask()` 메서드를 오버라이드하여 질문에 전문 분야 컨텍스트를 자동 주입합니다.
+RecursiveAgent는 Chain-of-Thought(CoT) 패턴으로 질문을 하위 질문으로 분해한 뒤 각각 답변하고 종합합니다.
+이는 논문에서 말하는 "인지(Cognition)" 계층의 서로 다른 구현 방식을 보여줍니다.
+
+**해결하는 문제**: 동일한 AgentBase 인터페이스 위에서 다양한 추론 전략을 실험할 수 있음을 보여줍니다.
+단순 질의응답(Specialist)부터 다단계 분석(CoT)까지, `ask()` 하나만 오버라이드하면 에이전트의 사고 방식 자체를 바꿀 수 있습니다.
+        """)
 
     tab1, tab2, tab3 = st.tabs(["Specialist Agent", "Reflection", "Recursive CoT"])
 
