@@ -1,3 +1,21 @@
-agentsociety2>=2.1.0
-python-dotenv>=1.0.0
-json-repair>=0.30.0
+# AgentSociety Replica - Dependencies
+# Python 3.14 compatible, litellm-free (security: supply chain attack 2026.03)
+
+# === Core: LLM Backend ===
+google-genai>=1.0.0          # Gemini API SDK (replaces litellm)
+
+# === Core: Data & Config ===
+pydantic>=2.0                # Data validation
+json-repair>=0.30.0          # LLM JSON output repair
+python-dotenv>=1.0.0         # .env file loading
+
+# === Storage ===
+sqlalchemy>=2.0              # ReplayWriter (SQLite)
+
+# === UI ===
+streamlit>=1.30              # Web dashboard
+plotly>=5.0                  # Interactive charts
+pyvis>=0.3                   # Network graph visualization
+
+# === Async (optional) ===
+aiohttp>=3.10                # Async HTTP client
