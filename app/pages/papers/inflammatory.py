@@ -113,25 +113,24 @@ def render():
     st.header("Inflammatory Messages (Paper Sec 7.3)")
     st.caption("Branch: `paper-inflammatory`")
 
-    with st.expander("About this experiment", expanded=False):
+    with st.expander("이 예제에 대하여", expanded=False):
         st.markdown("""
-**Paper reference**: Reproduces Section 7.3 "Spread of Inflammatory Messages".
-The paper simulates how inflammatory messages propagate through a social network,
-inspired by the 2022 Xuzhou chained woman incident. It compares inflammatory vs
-normal message spread and tests two content moderation strategies.
+**논문 대응**: 논문 Section 7.3 "Spread of Inflammatory Messages"를 재현한 실험입니다.
+논문에서는 2022년 중국 쉬저우 체인우먼 사건을 모티프로, 선동적 메시지가 소셜 네트워크에서
+어떻게 확산되는지를 1,000명 규모로 시뮬레이션했습니다. 일반 메시지 대비 선동적 메시지의
+확산 속도와 감정적 반응 강도를 비교하고, 두 가지 콘텐츠 모더레이션 전략의 효과를 측정했습니다.
 
-**Paper findings**: Inflammatory messages spread faster and trigger stronger emotional
-reactions than normal messages. Node intervention (account suspension) is more effective
-than edge intervention (connection removal) at containing spread.
-Agent interviews revealed emotional reactions and social responsibility as sharing motivations.
+**논문 결과**: 선동적 메시지가 일반 메시지보다 확산 속도와 감정 강도 모두에서 우위를 보였으며,
+노드 개입(계정 정지)이 엣지 개입(연결 제거)보다 확산 억제에 더 효과적이었습니다.
+에이전트 인터뷰에서는 감정적 반응과 사회적 책임감이 공유 동기로 나타났습니다.
 
-**How it works**: A social network is seeded with 2 agents holding a message.
-Each step, informed agents are asked whether to share. On YES, they forward to up to 2 friends.
-Node intervention bans agents with 2+ inflammatory shares.
-Edge intervention removes connections where inflammatory content was shared.
+**동작 원리**: 소셜 네트워크에 시드 에이전트 2명이 메시지를 보유한 상태로 시작합니다.
+매 스텝마다 정보를 가진 에이전트에게 "공유하겠는가?"를 질의하고, YES 응답 시 친구 2명에게 전파합니다.
+노드 개입은 2회 이상 선동 공유한 에이전트의 계정을 정지시키고,
+엣지 개입은 선동 메시지가 전달된 연결을 차단합니다.
 
-**Problem addressed**: Simulates social media content moderation policies before deployment.
-LLM agents allow comparison of intervention strategies that cannot be tested in real social experiments.
+**해결하는 문제**: 소셜 미디어 플랫폼의 콘텐츠 모더레이션 정책 효과를 사전에 시뮬레이션합니다.
+실제 사회 실험이 불가능한 개입 전략들을 LLM 에이전트로 비교 평가할 수 있습니다.
         """)
 
     n_agents = st.number_input("Network Size", 6, 20, 10)
