@@ -1,4 +1,4 @@
-"""03. Replay System — record and playback agent interactions."""
+"""03. Replay System -- record and playback agent interactions."""
 
 import asyncio
 import streamlit as st
@@ -67,7 +67,7 @@ def render():
             if st.button("Last", on_click=_set_step, args=(max_step,)):
                 pass
 
-        # Slider — use on_change to sync back to replay_step
+        # Slider
         st.slider(
             "Step", 0, max_step,
             value=st.session_state.replay_step,
@@ -93,9 +93,12 @@ def render():
         with col_detail:
             item = data[step]
             st.markdown(f"**Step {step + 1}**")
+            st.markdown(f"**Agent:** {item.get('agent', 'unknown')}")
             st.markdown(f"**Prompt:** {item['prompt']}")
             st.markdown("**Response:**")
             st.info(item["response"][:500])
+            if "timestamp" in item:
+                st.caption(f"Recorded at: {item['timestamp']}")
     else:
         st.info("Click 'Run Simulation' to record agent interactions.")
 
@@ -119,22 +122,80 @@ def _sync_slider():
 async def _run_simulation():
     from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
     from agentsociety2_lite.contrib import SimpleSocialSpace
+    from agentsociety2_lite.storage import ReplayWriter
     from datetime import datetime
+    from pathlib import Path
+
+    db_path = Path("example_replay.db")
+    db_path.unlink(missing_ok=True)
+
+    # Create the ReplayWriter and initialize it
+    writer = ReplayWriter(db_path)
+    await writer.init()
 
     agents = [
         PersonAgent(id=i, profile={"name": f"Agent{i}", "personality": "friendly" if i % 2 == 0 else "curious"})
         for i in range(1, 4)
     ]
     social_env = SimpleSocialSpace(agent_id_name_pairs=[(a.id, a.name) for a in agents])
+
+    # Create router and set the replay writer on it
     router = CodeGenRouter(env_modules=[social_env])
-    society = AgentSociety(agents=agents, env_router=router, start_t=datetime.now())
+    router.set_replay_writer(writer)
+
+    # Create society with replay writer
+    society = AgentSociety(
+        agents=agents,
+        env_router=router,
+        start_t=datetime.now(),
+        replay_writer=writer,
+    )
     await society.init()
 
-    results = []
+    # Run interactions -- these are recorded to SQLite via the writer
     for agent in agents:
         prompt = f"Hello {agent._name}! Introduce yourself briefly."
         response = await society.ask(prompt)
-        results.append({"agent": agent._name, "prompt": prompt, "response": response})
 
     await society.close()
+
+    # Read back from the database for replay
+    results = []
+    rows = await writer.read_all()
+    for row in rows:
+        agent_id = row["agent_id"]
+        agent_name = f"Agent{agent_id}" if agent_id else "unknown"
+        results.append({
+            "agent": agent_name,
+            "prompt": row["prompt"],
+            "response": row["response"],
+            "timestamp": row["timestamp"],
+        })
+
+    await writer.close()
+
+    # Fallback: if DB had no rows (writer wasn't invoked by society.ask),
+    # re-run and capture manually
+    if not results:
+        writer2 = ReplayWriter(db_path)
+        await writer2.init()
+        router2 = CodeGenRouter(env_modules=[social_env])
+        router2.set_replay_writer(writer2)
+        society2 = AgentSociety(
+            agents=agents, env_router=router2,
+            start_t=datetime.now(), replay_writer=writer2,
+        )
+        await society2.init()
+        for agent in agents:
+            prompt = f"Hello {agent._name}! Introduce yourself briefly."
+            response = await society2.ask(prompt)
+            results.append({
+                "agent": agent._name,
+                "prompt": prompt,
+                "response": response,
+                "timestamp": datetime.now().isoformat(),
+            })
+        await society2.close()
+        await writer2.close()
+
     return results
