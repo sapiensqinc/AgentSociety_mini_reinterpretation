@@ -1,4 +1,4 @@
-"""01. Prisoner's Dilemma — two agents choose cooperate/defect."""
+"""01. Prisoner's Dilemma -- two agents choose cooperate/defect."""
 
 import asyncio
 import streamlit as st
@@ -33,25 +33,29 @@ def render():
 
     with col_setup:
         st.subheader("Game Setup")
-        c_reward = st.number_input("Cooperate Reward (years)", 0, 10, 1)
-        d_punish = st.number_input("Defect Punishment (years)", 0, 10, 1)
-        tempt = st.number_input("Temptation", 0, 10, 3)
-        sucker = st.number_input("Sucker Punishment", 0, 10, 3)
+        c_reward = st.number_input("Cooperate Reward (both cooperate, years)", 0, 10, 1)
+        d_punish = st.number_input("Defect Punishment (both defect, years)", 0, 10, 3)
+        tempt = st.number_input("Temptation (defector goes free, years)", 0, 10, 0)
+        sucker = st.number_input("Sucker Punishment (cooperator gets, years)", 0, 10, 5)
 
     with col_matrix:
-        st.subheader("Payoff Matrix")
+        st.subheader("Payoff Matrix (years in prison)")
+        # Standard game theory payoff matrix:
+        # Both cooperate: cooperate_reward each
+        # Both defect: defect_punishment each
+        # One cooperates, one defects: cooperator=sucker, defector=tempt
         cc = c_reward
-        dd = c_reward + d_punish + 1
-        cd_c = c_reward + sucker + 1
-        cd_d = 0
+        dd = d_punish
+        cd_cooperator = sucker
+        cd_defector = tempt
 
         fig = go.Figure(data=[go.Table(
             header=dict(values=["", "Bob: Cooperate", "Bob: Defect"],
                        fill_color="#264653", font=dict(color="white")),
             cells=dict(values=[
                 ["Alice: Cooperate", "Alice: Defect"],
-                [f"{cc}, {cc}", f"{cd_d}, {cd_c}"],
-                [f"{cd_c}, {cd_d}", f"{dd}, {dd}"],
+                [f"{cc}, {cc}", f"{cd_defector}, {cd_cooperator}"],
+                [f"{cd_cooperator}, {cd_defector}", f"{dd}, {dd}"],
             ], fill_color=[["#f0f0f0"]*2, ["#e8f5e9"]*2, ["#ffebee"]*2]),
         )])
         fig.update_layout(height=200, margin=dict(l=0, r=0, t=0, b=0))
@@ -97,34 +101,61 @@ async def _run_game(c_reward, d_punish, tempt, sucker):
     from datetime import datetime
 
     game = PrisonersDilemma(c_reward, d_punish, tempt, sucker)
-    alice = PersonAgent(id=1, profile={"name": "Alice", "personality": "strategic and rational"})
-    bob = PersonAgent(id=2, profile={"name": "Bob", "personality": "trusting but cautious"})
+
+    alice = PersonAgent(id=1, profile={
+        "name": "Alice",
+        "personality": "strategic and rational",
+        "strategy": "will analyze the situation carefully before deciding",
+    })
+    bob = PersonAgent(id=2, profile={
+        "name": "Bob",
+        "personality": "trusting but cautious",
+        "strategy": "prefers cooperation but wary of betrayal",
+    })
+
     router = CodeGenRouter(env_modules=[game])
     society = AgentSociety(agents=[alice, bob], env_router=router, start_t=datetime.now())
     await society.init()
 
+    # Detailed scenario prompt matching the original's narrative style
+    scenario = (
+        "You have been arrested along with another suspect and are being held in separate rooms. "
+        "The police are interrogating you both separately. You cannot communicate with each other. "
+        "You must choose to either COOPERATE (stay silent) or DEFECT (betray your partner).\n\n"
+        "Here are the possible outcomes:\n"
+        f"- If BOTH of you COOPERATE (stay silent): You each get {c_reward} year(s) in prison.\n"
+        f"- If BOTH of you DEFECT (betray each other): You each get {d_punish} year(s) in prison.\n"
+        f"- If YOU COOPERATE but your partner DEFECTS: You get {sucker} year(s) (the 'sucker' penalty) "
+        f"and your partner goes free ({tempt} years).\n"
+        f"- If YOU DEFECT but your partner COOPERATES: You go free ({tempt} years) "
+        f"and your partner gets {sucker} year(s).\n\n"
+        "What is your decision? Respond with either 'COOPERATE' or 'DEFECT' and explain your reasoning."
+    )
+
     alice_resp = await society.ask(
-        "You are Alice in a prisoner's dilemma. Choose COOPERATE or DEFECT. Explain your reasoning."
+        f"You are Alice. {scenario}"
     )
     bob_resp = await society.ask(
-        "You are Bob in a prisoner's dilemma. Choose COOPERATE or DEFECT. Explain your reasoning."
+        f"You are Bob. {scenario}"
     )
 
     alice_coop = "cooperate" in alice_resp.lower()
     bob_coop = "cooperate" in bob_resp.lower()
 
+    # Standard game theory payoffs
     if alice_coop and bob_coop:
         a_s, b_s, outcome = c_reward, c_reward, "Both COOPERATED"
-    elif alice_coop:
-        a_s, b_s, outcome = c_reward + sucker + 1, 0, "Alice COOPERATED, Bob DEFECTED"
-    elif bob_coop:
-        a_s, b_s, outcome = 0, c_reward + sucker + 1, "Alice DEFECTED, Bob COOPERATED"
+    elif alice_coop and not bob_coop:
+        a_s, b_s, outcome = sucker, tempt, "Alice COOPERATED, Bob DEFECTED"
+    elif not alice_coop and bob_coop:
+        a_s, b_s, outcome = tempt, sucker, "Alice DEFECTED, Bob COOPERATED"
     else:
-        a_s, b_s, outcome = c_reward + d_punish + 1, c_reward + d_punish + 1, "Both DEFECTED"
+        a_s, b_s, outcome = d_punish, d_punish, "Both DEFECTED"
 
     reflection = await society.ask(
-        f"Results: {outcome}. Alice got {a_s} years, Bob got {b_s} years. "
-        f"Are you satisfied? Would you make the same choice?"
+        f"The results are in: {outcome}. Alice got {a_s} year(s), Bob got {b_s} year(s). "
+        f"Are you satisfied with your decision? Would you make the same choice again? "
+        f"Explain your thinking."
     )
     await society.close()
 
