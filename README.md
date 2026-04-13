@@ -1,54 +1,100 @@
 # AgentSociety Replica
 
-AgentSociety 논문과 코드베이스의 비교 분석 및 실행 가능한 예시 모음입니다.
+AgentSociety 논문의 비교 분석 및 실행 가능한 예시 모음.
+Python 3.14 호환 + Gemini API 기반 + Streamlit 시각화 UI.
 
-## 구조
+## Architecture
 
-- **main**: 논문 vs 코드 비교 분석 (`PAPER_VS_CODE.md`) + 공통 설정
-- **examples-basics**: 기본 예시 (hello agent, custom env module, replay system)
-- **examples-advanced**: 고급 예시 (custom agent, multi router)
-- **examples-games**: 게임이론 예시 (prisoner's dilemma, public goods, reputation game)
-- **paper-polarization**: 논문 재현 — 양극화 실험 (총기규제 의견 변화)
-- **paper-inflammatory**: 논문 재현 — 선동적 메시지 확산 실험
-- **paper-ubi**: 논문 재현 — 보편적 기본소득(UBI) 정책 실험
-- **paper-hurricane**: 논문 재현 — 허리케인 외부 충격 실험
+원본 `agentsociety2` 패키지(45+ 의존성, litellm 보안 이슈)를 대체하는 경량 코어 라이브러리(`agentsociety2_lite`)를 사용합니다.
 
-## 사전 요구사항
-
-```bash
-# Python 3.11+
-pip install agentsociety2
-
-# 또는 원본 프로젝트에서 (uv workspace)
-cd <AgentSociety_root>
-uv sync
+```
+agentsociety2_lite/     ← 경량 코어 (Gemini 백엔드)
+app/                    ← Streamlit 통합 UI
+docs/                   ← 예제별 UI 디자인 + 시나리오
+examples/               ← 실험 스크립트 (브랜치별)
 ```
 
-## 환경 변수 설정
+## Branches
 
-`.env.example`을 `.env`로 복사하고 API 키를 입력하세요:
+| Branch | Description | Examples |
+|--------|-------------|----------|
+| **main** | 코어 라이브러리 + UI + 문서 | - |
+| **examples-basics** | 기본 예시 | hello agent, custom env, replay |
+| **examples-advanced** | 고급 예시 | custom agent, multi router |
+| **examples-games** | 게임이론 | prisoner's dilemma, public goods, reputation |
+| **paper-polarization** | 논문 7.2 | 총기규제 의견 양극화 |
+| **paper-inflammatory** | 논문 7.3 | 선동적 메시지 확산 |
+| **paper-ubi** | 논문 7.4 | 보편적 기본소득(UBI) |
+| **paper-hurricane** | 논문 7.5 | 허리케인 외부 충격 |
+
+## Quick Start
 
 ```bash
+# 1. Clone & setup
+git clone https://github.com/sapiensqinc/AgentSociety_Replica.git
+cd AgentSociety_Replica
+python -m venv .venv
+source .venv/Scripts/activate  # Windows
+# source .venv/bin/activate    # Linux/Mac
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Configure API key
 cp .env.example .env
-# AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE 등 설정
+# Edit .env: GEMINI_API_KEY=your-key-here
+
+# 4. Run Streamlit UI
+streamlit run app/app.py
 ```
 
-## 실행 방법
+## Dependencies
 
-각 브랜치를 체크아웃한 뒤, 해당 디렉토리의 Python 스크립트를 실행합니다:
+| Package | Purpose | Security |
+|---------|---------|:--------:|
+| google-genai | Gemini LLM API | SAFE |
+| pydantic | Data validation | SAFE |
+| json-repair | LLM JSON repair | CAUTION |
+| python-dotenv | .env loading | SAFE |
+| sqlalchemy | Replay DB | SAFE |
+| streamlit | Web UI | CAUTION |
+| plotly | Charts | SAFE |
+| pyvis | Network graphs | CAUTION |
 
-```bash
-# 예: 기본 예시
-git checkout examples-basics
-python examples/basics/01_hello_agent.py
+litellm은 2026년 3월 공급망 공격으로 인해 의존성에서 완전히 제거되었습니다.
+자세한 내용: [docs/security_review.md](docs/security_review.md)
 
-# 예: 논문 재현 - 양극화 실험
-git checkout paper-polarization
-python examples/paper_experiments/polarization/run_polarization.py
-```
+## Documentation
 
-## 참고
+- [Architecture](docs/architecture.md) — 경량 코어 라이브러리 설계
+- [Streamlit App](docs/streamlit_app.md) — UI 구조
+- [Security Review](docs/security_review.md) — 의존성 보안 감사
+- [Paper vs Code](PAPER_VS_CODE.md) — 논문-코드 비교 분석
+
+### Example Designs (UI Mockups)
+
+**Basics:**
+- [01. Hello Agent](docs/examples-basics/01_hello_agent.md)
+- [02. Custom Environment](docs/examples-basics/02_custom_env.md)
+- [03. Replay System](docs/examples-basics/03_replay_system.md)
+
+**Advanced:**
+- [01. Custom Agent](docs/examples-advanced/01_custom_agent.md)
+- [02. Multi-Router](docs/examples-advanced/02_multi_router.md)
+
+**Games:**
+- [01. Prisoner's Dilemma](docs/examples-games/01_prisoners_dilemma.md)
+- [02. Public Goods](docs/examples-games/02_public_goods.md)
+- [03. Reputation Game](docs/examples-games/03_reputation_game.md)
+
+**Paper Experiments:**
+- [Polarization (Sec 7.2)](docs/paper-experiments/polarization.md)
+- [Inflammatory Messages (Sec 7.3)](docs/paper-experiments/inflammatory.md)
+- [UBI Policy (Sec 7.4)](docs/paper-experiments/ubi.md)
+- [Hurricane Impact (Sec 7.5)](docs/paper-experiments/hurricane.md)
+
+## References
 
 - **논문**: arXiv:2502.08691 (2025.02.12)
 - **원본 코드**: [tsinghua-fib-lab/AgentSociety](https://github.com/tsinghua-fib-lab/AgentSociety)
-- 논문 실험(v1)은 agentsociety2(v2) API로 재구현되었습니다
+- 논문 실험(v1)은 agentsociety2(v2) API 기반으로 재구현 후, Python 3.14 + Gemini로 재구성
