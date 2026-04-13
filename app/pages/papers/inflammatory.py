@@ -1,0 +1,171 @@
+"""Paper: Inflammatory Messages Experiment (Section 7.3)."""
+
+import asyncio
+import re
+import random
+import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from app.config import require_api_key
+from agentsociety2_lite.env import EnvBase, tool
+
+
+NORMAL_MSG = "A woman was found in difficult circumstances in a rural village. Authorities are investigating."
+INFLAMMATORY_MSG = "SHOCKING: Woman found chained in village! Government cover-up! Share before they delete this!"
+
+
+def render():
+    st.header("Inflammatory Messages (Paper Sec 7.3)")
+    st.caption("Branch: `paper-inflammatory` | \uc120\ub3d9\uc801 \uba54\uc2dc\uc9c0 \ud655\uc0b0 \uc2e4\ud5d8")
+
+    n_agents = st.number_input("Network Size", 6, 20, 10)
+    n_steps = st.number_input("Steps", 2, 8, 4)
+
+    conditions = st.multiselect(
+        "Conditions",
+        ["control", "experimental", "node_intervention", "edge_intervention"],
+        default=["control", "experimental"],
+    )
+
+    if st.button("Run Experiment") and conditions and require_api_key():
+        all_results = {}
+        progress = st.progress(0)
+
+        for ci, cond in enumerate(conditions):
+            with st.spinner(f"Running {cond}..."):
+                is_inflammatory = cond != "control"
+                msg = INFLAMMATORY_MSG if is_inflammatory else NORMAL_MSG
+                result = asyncio.run(_run_spread(
+                    cond, n_agents, msg, is_inflammatory, n_steps
+                ))
+                all_results[cond] = result
+            progress.progress((ci + 1) / len(conditions))
+
+        # Dual-axis chart
+        st.markdown("---")
+        st.subheader("Spread & Emotion Over Time")
+
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        colors = {"control": "#3498db", "experimental": "#e74c3c",
+                  "node_intervention": "#2ecc71", "edge_intervention": "#f39c12"}
+
+        for cond, result in all_results.items():
+            color = colors.get(cond, "#95a5a6")
+            steps = list(range(1, len(result["spread_history"]) + 1))
+            fig.add_trace(go.Scatter(
+                x=steps, y=result["spread_history"],
+                name=f"{cond} (spread)", line=dict(color=color),
+            ), secondary_y=False)
+            fig.add_trace(go.Scatter(
+                x=steps, y=result["emotion_history"],
+                name=f"{cond} (emotion)", line=dict(color=color, dash="dash"),
+            ), secondary_y=True)
+
+        fig.update_yaxes(title_text="Spread Ratio", range=[0, 1], secondary_y=False)
+        fig.update_yaxes(title_text="Avg Emotion", range=[0, 1], secondary_y=True)
+        fig.update_layout(height=400, xaxis_title="Step")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Comparison table
+        st.subheader("Final Comparison")
+        rows = []
+        for cond, result in all_results.items():
+            rows.append({
+                "Condition": cond,
+                "Spread": f"{result['final_spread']:.0%}",
+                "Emotion": f"{result['final_emotion']:.2f}",
+                "Messages": result["total_messages"],
+                "Banned": result.get("banned", 0),
+            })
+        st.table(rows)
+
+        st.caption("Paper: inflammatory > control in spread+emotion; node intervention > edge intervention")
+
+
+async def _run_spread(condition, n, seed_msg, is_inflammatory, num_steps):
+    from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
+    from datetime import datetime
+
+    random.seed(42)
+    profiles = [{"id": i+1, "name": f"User_{i+1}",
+                 "friends": random.sample([x for x in range(1, n+1) if x != i+1], min(3, n-1))}
+                for i in range(n)]
+
+    env = SpreadEnv(profiles)
+    # Seed agents
+    for sid in [1, 2]:
+        env._received[sid] = True
+        env._emotions[sid] = 0.6 if is_inflammatory else 0.2
+
+    agents = [PersonAgent(id=p["id"], profile={"name": p["name"], "personality": "socially aware"})
+              for p in profiles]
+    router = CodeGenRouter(env_modules=[env])
+    society = AgentSociety(agents=agents, env_router=router, start_t=datetime.now())
+    await society.init()
+
+    spread_history, emotion_history = [], []
+
+    for step in range(num_steps):
+        for p in profiles:
+            aid = p["id"]
+            if aid in env._banned or not env._received.get(aid):
+                continue
+
+            resp = await society.ask(
+                f"You are {p['name']}. You received: '{seed_msg}'. "
+                f"Emotion: {env._emotions.get(aid, 0.1):.1f}. Share with friends? YES/NO. Rate emotion 0-1."
+            )
+
+            will_share = "yes" in resp.lower()
+            match = re.search(r"(\d+\.?\d*)", resp)
+            if match:
+                env._emotions[aid] = max(0, min(1, float(match.group(1))))
+
+            if will_share:
+                available = [f for f in p["friends"] if f not in env._banned
+                            and (min(aid, f), max(aid, f)) not in env._removed_edges]
+                for fid in available[:2]:
+                    env._received[fid] = True
+                    env._messages += 1
+                    if is_inflammatory:
+                        env._infractions[aid] = env._infractions.get(aid, 0) + 1
+
+        if "node" in condition:
+            for aid, count in env._infractions.items():
+                if count >= 2:
+                    env._banned.add(aid)
+        elif "edge" in condition:
+            pass  # simplified
+
+        informed = sum(1 for v in env._received.values() if v)
+        avg_emo = sum(env._emotions.values()) / n
+        spread_history.append(informed / n)
+        emotion_history.append(avg_emo)
+
+    await society.close()
+
+    return {
+        "spread_history": spread_history,
+        "emotion_history": emotion_history,
+        "final_spread": spread_history[-1] if spread_history else 0,
+        "final_emotion": emotion_history[-1] if emotion_history else 0,
+        "total_messages": env._messages,
+        "banned": len(env._banned),
+    }
+
+
+class SpreadEnv(EnvBase):
+    def __init__(self, profiles):
+        super().__init__()
+        self._received = {}
+        self._emotions = {p["id"]: 0.1 for p in profiles}
+        self._banned = set()
+        self._removed_edges = set()
+        self._infractions = {}
+        self._messages = 0
+
+    @tool(readonly=True, kind="statistics")
+    def get_spread_stats(self) -> str:
+        """Get current spread statistics."""
+        informed = sum(1 for v in self._received.values() if v)
+        return f"Informed: {informed}, Messages: {self._messages}, Banned: {len(self._banned)}"
