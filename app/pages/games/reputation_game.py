@@ -15,7 +15,29 @@ PERSONALITIES = [
 
 def render():
     st.header("03. Reputation Game")
-    st.caption("Branch: `examples-games` | \uac04\uc811 \uc0c1\ud638\uc131 + \uc0ac\ud68c \uaddc\ubc94")
+    st.caption("Branch: `examples-games`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 3.4 "Social Behaviors"의 사회적 상호작용 메커니즘과
+Section 4.3 "Social Space"의 평판 기반 사회 네트워크를 결합한 실험입니다.
+논문에서 에이전트들은 관계 강도에 따라 상호작용 빈도가 달라지는데,
+이 예제는 그 기초가 되는 "간접 상호성(indirect reciprocity)" 이론을 구현합니다.
+
+**원본 코드 위치**: `agentsociety2/contrib/env/reputation_game.py`의 `ReputationGameEnv`와
+`agentsociety2/contrib/agent/llm_donor_agent.py`의 `LLMDonorAgent`가 원본입니다.
+원본은 mem0 메모리 시스템과 연동하여 에이전트가 과거 상호작용을 기억하지만,
+이 경량 버전에서는 전역 평판 상태로 단순화했습니다.
+
+**동작 원리**: 매 스텝마다 무작위로 기여자-수혜자 쌍이 매칭됩니다. 기여자는 상대의 평판을 보고
+협력(비용 지불, 상대에게 이익) 또는 배신(아무 일도 안 함)을 결정합니다.
+사회 규범(Stern Judging, Image Score, Simple Standing)에 따라 이 결정이 기여자의 평판을 업데이트합니다.
+예를 들어 Stern Judging에서는 "나쁜 평판인 상대를 배신하면 좋은 평판을 유지"하는 규칙이 적용됩니다.
+
+**해결하는 문제**: 사회 규범이 집단 협력의 진화에 어떤 영향을 미치는지 탐구합니다.
+진화 게임이론에서 Stern Judging이 Image Score보다 높은 협력률을 유도하는 것으로 알려져 있는데,
+LLM 에이전트도 동일한 패턴을 보이는지 검증할 수 있습니다.
+        """)
 
     col1, col2, col3 = st.columns(3)
     z = col1.number_input("Population (Z)", 4, 20, 8)

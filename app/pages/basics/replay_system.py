@@ -2,16 +2,34 @@
 
 import asyncio
 import streamlit as st
-from pathlib import Path
 from app.config import require_api_key
 
 
 def render():
     st.header("03. Replay System")
-    st.caption("Branch: `examples-basics` | \uc2dc\ubbac\ub808\uc774\uc158 \uae30\ub85d \ubc0f \uc7ac\uc0dd")
+    st.caption("Branch: `examples-basics`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 5.5 "Utilities"와 Section 7.1 "One Day Life"에서 다루는 시뮬레이션 기록 및 재생 기능을 시연합니다.
+논문에서는 PostgreSQL에 에이전트의 모든 상호작용을 기록하고, GUI를 통해 재생했습니다.
+
+**원본 코드 위치**: `agentsociety2/storage/replay_writer.py`의 `ReplayWriter` 클래스가 핵심입니다.
+원본에서는 `aiosqlite` 비동기 SQLite를 사용하며, 환경 라우터에 `set_replay_writer()`로 연결하면
+모든 도구 호출과 응답이 자동으로 DB에 기록됩니다.
+
+**동작 원리**: ReplayWriter는 SQLite DB에 (agent_id, prompt, response, timestamp) 형태로 상호작용을 저장합니다.
+시뮬레이션 실행 후 DB를 시간순으로 탐색하면, 어떤 에이전트가 언제 무슨 질문을 받고 어떻게 답했는지를 추적할 수 있습니다.
+이 예제에서는 3명의 에이전트에게 자기소개를 요청하고, 그 결과를 단계별로 재생합니다.
+
+**해결하는 문제**: 대규모 시뮬레이션에서 수천 개의 상호작용이 발생할 때,
+특정 시점의 에이전트 행동을 사후에 분석하고 디버깅할 수 있는 관찰 도구를 제공합니다.
+논문의 "One Day Life"(Section 7.1) 실험처럼 에이전트의 하루 활동을 시간순으로 추적하는 데 활용됩니다.
+        """)
 
     if "replay_data" not in st.session_state:
         st.session_state.replay_data = []
+    if "replay_step" not in st.session_state:
         st.session_state.replay_step = 0
 
     # Record section
@@ -28,30 +46,36 @@ def render():
     # Replay section
     if st.session_state.replay_data:
         data = st.session_state.replay_data
+        max_step = len(data) - 1
         st.markdown("---")
         st.subheader("Replay")
 
+        # Navigation buttons with callbacks
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            if st.button("\u23ee First"):
-                st.session_state.replay_step = 0
+            if st.button("First", on_click=_set_step, args=(0,)):
+                pass
         with col2:
-            if st.button("\u25c0 Prev"):
-                st.session_state.replay_step = max(0, st.session_state.replay_step - 1)
+            if st.button("Prev", on_click=_step_by, args=(-1, max_step)):
+                pass
         with col3:
             st.markdown(f"**{st.session_state.replay_step + 1} / {len(data)}**")
         with col4:
-            if st.button("Next \u25b6"):
-                st.session_state.replay_step = min(len(data) - 1, st.session_state.replay_step + 1)
+            if st.button("Next", on_click=_step_by, args=(1, max_step)):
+                pass
         with col5:
-            if st.button("Last \u23ed"):
-                st.session_state.replay_step = len(data) - 1
+            if st.button("Last", on_click=_set_step, args=(max_step,)):
+                pass
+
+        # Slider — use on_change to sync back to replay_step
+        st.slider(
+            "Step", 0, max_step,
+            value=st.session_state.replay_step,
+            key="replay_slider",
+            on_change=_sync_slider,
+        )
 
         step = st.session_state.replay_step
-        step_slider = st.slider("Step", 0, len(data) - 1, step, key="replay_slider")
-        if step_slider != step:
-            st.session_state.replay_step = step_slider
-            step = step_slider
 
         col_status, col_detail = st.columns([1, 2])
 
@@ -70,10 +94,26 @@ def render():
             item = data[step]
             st.markdown(f"**Step {step + 1}**")
             st.markdown(f"**Prompt:** {item['prompt']}")
-            st.markdown(f"**Response:**")
+            st.markdown("**Response:**")
             st.info(item["response"][:500])
     else:
         st.info("Click 'Run Simulation' to record agent interactions.")
+
+
+def _set_step(value):
+    st.session_state.replay_step = value
+    st.session_state.replay_slider = value
+
+
+def _step_by(delta, max_step):
+    new = st.session_state.replay_step + delta
+    new = max(0, min(max_step, new))
+    st.session_state.replay_step = new
+    st.session_state.replay_slider = new
+
+
+def _sync_slider():
+    st.session_state.replay_step = st.session_state.replay_slider
 
 
 async def _run_simulation():
