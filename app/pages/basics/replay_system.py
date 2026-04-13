@@ -2,16 +2,16 @@
 
 import asyncio
 import streamlit as st
-from pathlib import Path
 from app.config import require_api_key
 
 
 def render():
     st.header("03. Replay System")
-    st.caption("Branch: `examples-basics` | \uc2dc\ubbac\ub808\uc774\uc158 \uae30\ub85d \ubc0f \uc7ac\uc0dd")
+    st.caption("Branch: `examples-basics` | 시뮬레이션 기록 및 재생")
 
     if "replay_data" not in st.session_state:
         st.session_state.replay_data = []
+    if "replay_step" not in st.session_state:
         st.session_state.replay_step = 0
 
     # Record section
@@ -28,30 +28,36 @@ def render():
     # Replay section
     if st.session_state.replay_data:
         data = st.session_state.replay_data
+        max_step = len(data) - 1
         st.markdown("---")
         st.subheader("Replay")
 
+        # Navigation buttons with callbacks
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            if st.button("\u23ee First"):
-                st.session_state.replay_step = 0
+            if st.button("First", on_click=_set_step, args=(0,)):
+                pass
         with col2:
-            if st.button("\u25c0 Prev"):
-                st.session_state.replay_step = max(0, st.session_state.replay_step - 1)
+            if st.button("Prev", on_click=_step_by, args=(-1, max_step)):
+                pass
         with col3:
             st.markdown(f"**{st.session_state.replay_step + 1} / {len(data)}**")
         with col4:
-            if st.button("Next \u25b6"):
-                st.session_state.replay_step = min(len(data) - 1, st.session_state.replay_step + 1)
+            if st.button("Next", on_click=_step_by, args=(1, max_step)):
+                pass
         with col5:
-            if st.button("Last \u23ed"):
-                st.session_state.replay_step = len(data) - 1
+            if st.button("Last", on_click=_set_step, args=(max_step,)):
+                pass
+
+        # Slider — use on_change to sync back to replay_step
+        st.slider(
+            "Step", 0, max_step,
+            value=st.session_state.replay_step,
+            key="replay_slider",
+            on_change=_sync_slider,
+        )
 
         step = st.session_state.replay_step
-        step_slider = st.slider("Step", 0, len(data) - 1, step, key="replay_slider")
-        if step_slider != step:
-            st.session_state.replay_step = step_slider
-            step = step_slider
 
         col_status, col_detail = st.columns([1, 2])
 
@@ -70,10 +76,26 @@ def render():
             item = data[step]
             st.markdown(f"**Step {step + 1}**")
             st.markdown(f"**Prompt:** {item['prompt']}")
-            st.markdown(f"**Response:**")
+            st.markdown("**Response:**")
             st.info(item["response"][:500])
     else:
         st.info("Click 'Run Simulation' to record agent interactions.")
+
+
+def _set_step(value):
+    st.session_state.replay_step = value
+    st.session_state.replay_slider = value
+
+
+def _step_by(delta, max_step):
+    new = st.session_state.replay_step + delta
+    new = max(0, min(max_step, new))
+    st.session_state.replay_step = new
+    st.session_state.replay_slider = new
+
+
+def _sync_slider():
+    st.session_state.replay_step = st.session_state.replay_slider
 
 
 async def _run_simulation():
