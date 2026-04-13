@@ -64,7 +64,7 @@ def render():
         sorted_agents = sorted(results["payoffs"].items(), key=lambda x: x[1], reverse=True)
         for rank, (name, payoff) in enumerate(sorted_agents, 1):
             rep = results["reputations"][name]
-            icon = "\ud83d\udfe2" if rep == "good" else "\ud83d\udd34"
+            icon = "(+)" if rep == "good" else "(-)"
             st.write(f"{rank}. {icon} **{name}**: payoff = {payoff:.1f}")
 
         with st.expander("Recent Interactions"):
