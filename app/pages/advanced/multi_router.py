@@ -7,6 +7,25 @@ import plotly.graph_objects as go
 from app.config import require_api_key
 
 
+DESCRIPTION = """
+**논문 대응**: 논문 Section 5 "Large-scale Social Simulation Engine"의 시스템 아키텍처에 해당합니다.
+논문(v1)에서는 에이전트가 환경 API를 직접 호출했지만, v2 코드에서는 에이전트와 환경 사이에
+"라우터(Router)"라는 중간 계층을 도입하여 LLM이 자연어를 도구 호출로 자동 변환합니다.
+
+**원본 코드 위치**: `agentsociety2/env/` 디렉토리에 5가지 라우터가 구현되어 있습니다.
+`router_codegen.py`(CodeGen), `router_react.py`(ReAct), `router_plan_execute.py`(PlanExecute),
+그리고 이들의 2단계 변형(TwoTier)이 있습니다. 이 예제에서는 핵심 3가지를 비교합니다.
+
+**동작 원리**: 같은 질문이 각 라우터에 전달되면 서로 다른 전략으로 처리됩니다.
+ReAct는 "생각-행동-관찰"을 반복하며 점진적으로 답에 접근합니다.
+PlanExecute는 먼저 전체 계획을 세운 뒤 각 단계를 순차 실행합니다.
+CodeGen은 Python 코드를 생성하여 실행하므로 계산 문제에 가장 효율적입니다.
+
+**해결하는 문제**: 연구자가 실험 특성에 맞는 최적의 라우팅 전략을 선택할 수 있게 합니다.
+단순 계산은 CodeGen이, 탐색적 질의는 ReAct가, 복잡한 다단계 태스크는 PlanExecute가 적합합니다.
+토큰 사용량과 응답 시간의 트레이드오프를 직접 비교해볼 수 있습니다.
+"""
+
 PRESETS = {
     "Apple Math": ("I have 10 apples. I give 3 to Alice and 2 to Bob. "
                    "Then Alice gives me back 1 apple. How many apples do I have now? "
@@ -19,7 +38,10 @@ PRESETS = {
 
 def render():
     st.header("02. Multi-Router Comparison")
-    st.caption("Branch: `examples-advanced` | ReAct vs PlanExecute vs CodeGen")
+    st.caption("Branch: `examples-advanced`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown(DESCRIPTION)
 
     preset = st.selectbox("Preset Questions", ["Custom"] + list(PRESETS.keys()))
     if preset != "Custom":

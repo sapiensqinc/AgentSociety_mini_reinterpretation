@@ -7,7 +7,25 @@ from app.config import require_api_key
 
 def render():
     st.header("03. Replay System")
-    st.caption("Branch: `examples-basics` | 시뮬레이션 기록 및 재생")
+    st.caption("Branch: `examples-basics`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown("""
+**논문 대응**: 논문 Section 5.5 "Utilities"와 Section 7.1 "One Day Life"에서 다루는 시뮬레이션 기록 및 재생 기능을 시연합니다.
+논문에서는 PostgreSQL에 에이전트의 모든 상호작용을 기록하고, GUI를 통해 재생했습니다.
+
+**원본 코드 위치**: `agentsociety2/storage/replay_writer.py`의 `ReplayWriter` 클래스가 핵심입니다.
+원본에서는 `aiosqlite` 비동기 SQLite를 사용하며, 환경 라우터에 `set_replay_writer()`로 연결하면
+모든 도구 호출과 응답이 자동으로 DB에 기록됩니다.
+
+**동작 원리**: ReplayWriter는 SQLite DB에 (agent_id, prompt, response, timestamp) 형태로 상호작용을 저장합니다.
+시뮬레이션 실행 후 DB를 시간순으로 탐색하면, 어떤 에이전트가 언제 무슨 질문을 받고 어떻게 답했는지를 추적할 수 있습니다.
+이 예제에서는 3명의 에이전트에게 자기소개를 요청하고, 그 결과를 단계별로 재생합니다.
+
+**해결하는 문제**: 대규모 시뮬레이션에서 수천 개의 상호작용이 발생할 때,
+특정 시점의 에이전트 행동을 사후에 분석하고 디버깅할 수 있는 관찰 도구를 제공합니다.
+논문의 "One Day Life"(Section 7.1) 실험처럼 에이전트의 하루 활동을 시간순으로 추적하는 데 활용됩니다.
+        """)
 
     if "replay_data" not in st.session_state:
         st.session_state.replay_data = []
