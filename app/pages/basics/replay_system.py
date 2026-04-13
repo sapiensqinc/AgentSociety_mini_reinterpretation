@@ -59,7 +59,7 @@ def render():
             st.markdown("**Agent Status**")
             for i, name in enumerate(agent_names):
                 status = "active" if i == step else ("done" if i < step else "waiting")
-                icon = {"active": "\ud83d\udfe2", "done": "\u2705", "waiting": "\u26aa"}[status]
+                icon = {"active": "[ON]", "done": "[OK]", "waiting": "[--]"}[status]
                 st.write(f"{icon} {name}")
 
             st.markdown("**Stats**")
