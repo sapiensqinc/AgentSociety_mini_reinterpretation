@@ -105,7 +105,7 @@ def render():
         day_select = st.selectbox("View Individual Decisions (Day)", range(1, 10), index=4)
         day_data = results["daily"][day_select - 1]
         for d in day_data["decisions"]:
-            icon = "\ud83d\udfe2" if d["go_out"] else "\ud83d\udd34"
+            icon = "[OUT]" if d["go_out"] else "[HOME]"
             action = "GO OUT" if d["go_out"] else "STAY HOME"
             with st.expander(f"{icon} {d['name']} ({d['occupation']}): {action}"):
                 st.write(d.get("reasoning", ""))
