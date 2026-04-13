@@ -1,4 +1,7 @@
-"""Paper: Polarization Experiment (Section 7.2)."""
+"""Paper: Polarization Experiment (Section 7.2).
+
+Faithful reproduction of the original run_polarization.py from branch paper-polarization.
+"""
 
 import asyncio
 import re
@@ -13,33 +16,7 @@ from agentsociety2_lite.env import EnvBase, tool
 NAMES = ["Alex", "Jordan", "Taylor", "Morgan", "Casey",
          "Riley", "Quinn", "Avery", "Cameron", "Dakota"]
 
-
-def _generate_profiles(n=10, seed=42):
-    random.seed(seed)
-    personalities = [
-        "conservative and values traditional rights",
-        "liberal and values public safety",
-        "libertarian who prioritizes individual freedom",
-        "moderate who weighs both sides carefully",
-        "progressive who advocates for stricter regulations",
-    ]
-    profiles = []
-    for i in range(n):
-        opinion = random.uniform(1.0, 4.0) if random.random() < 0.5 else random.uniform(6.0, 9.0)
-        profiles.append({
-            "id": i + 1, "name": NAMES[i % len(NAMES)],
-            "personality": random.choice(personalities),
-            "initial_opinion": round(opinion, 1),
-        })
-    return profiles
-
-
-def render():
-    st.header("Polarization Experiment (Paper Sec 7.2)")
-    st.caption("Branch: `paper-polarization`")
-
-    with st.expander("이 예제에 대하여", expanded=False):
-        st.markdown("""
+DESCRIPTION = """
 **논문 대응**: 논문 Section 7.2 "Polarization"을 직접 재현한 실험입니다.
 논문에서는 1,000명의 에이전트로 미국 총기규제에 대한 의견 양극화를 시뮬레이션했습니다.
 3가지 사회적 조건(통제/동질적 상호작용/이질적 상호작용)에서 의견이 어떻게 변화하는지 관찰하여,
@@ -56,7 +33,103 @@ def render():
 
 **해결하는 문제**: 소셜 미디어의 에코 챔버가 사회 양극화를 심화시킨다는 가설을 계산 실험으로 검증합니다.
 소규모(10명)로도 논문의 대규모(1,000명) 실험과 유사한 경향을 재현할 수 있는지 확인합니다.
-        """)
+"""
+
+
+# ── Environment (faithful to original PolarizationSocialSpace) ──
+
+class PolarizationSocialSpace(EnvBase):
+    """Social environment that tracks agent opinions and messaging."""
+
+    def __init__(self, agent_profiles: list[dict]):
+        super().__init__()
+        self._opinions: dict[int, float] = {}
+        self._chat_log: list[dict] = []
+        self._agent_names: dict[int, str] = {}
+        for p in agent_profiles:
+            aid = p["id"]
+            self._agent_names[aid] = p["name"]
+            self._opinions[aid] = p.get("initial_opinion", 5.0)
+
+    @tool(readonly=True, kind="observe")
+    def get_agent_opinion(self, agent_id: int) -> str:
+        """Get an agent's current opinion on gun control (0-10 scale)."""
+        opinion = self._opinions.get(agent_id, 5.0)
+        name = self._agent_names.get(agent_id, f"Agent{agent_id}")
+        stance = "supports" if opinion > 5 else "opposes" if opinion < 5 else "is neutral on"
+        return f"{name} {stance} gun control (score: {opinion:.1f}/10)"
+
+    @tool(readonly=True, kind="observe")
+    def get_all_opinions(self) -> str:
+        """Get all agents' opinions on gun control."""
+        lines = [f"{self._agent_names.get(aid, f'Agent{aid}')}: {op:.1f}/10"
+                 for aid, op in sorted(self._opinions.items())]
+        return "Gun control opinions:\n" + "\n".join(lines)
+
+    @tool(readonly=False)
+    def update_opinion(self, agent_id: int, new_opinion: float) -> str:
+        """Update an agent's opinion on gun control (0-10 scale)."""
+        old = self._opinions.get(agent_id, 5.0)
+        self._opinions[agent_id] = max(0, min(10, new_opinion))
+        name = self._agent_names.get(agent_id, f"Agent{agent_id}")
+        return f"{name} opinion updated: {old:.1f} -> {new_opinion:.1f}"
+
+    @tool(readonly=False)
+    def send_message(self, from_id: int, to_id: int, message: str) -> str:
+        """Send a message from one agent to another."""
+        self._chat_log.append({"from": from_id, "to": to_id, "message": message})
+        return f"Message sent from {self._agent_names.get(from_id)} to {self._agent_names.get(to_id)}"
+
+    @tool(readonly=True, kind="statistics")
+    def get_opinion_statistics(self) -> str:
+        """Get statistics about opinion distribution."""
+        opinions = list(self._opinions.values())
+        avg = sum(opinions) / len(opinions)
+        support = sum(1 for o in opinions if o > 6)
+        oppose = sum(1 for o in opinions if o < 4)
+        neutral = len(opinions) - support - oppose
+        return (f"Opinion Stats: avg={avg:.1f}, support={support}, oppose={oppose}, "
+                f"neutral={neutral}, messages={len(self._chat_log)}")
+
+    def get_opinions_snapshot(self) -> dict[int, float]:
+        return dict(self._opinions)
+
+
+# ── Profile generation (faithful to original) ──
+
+def _generate_profiles(n=10, seed=42):
+    random.seed(seed)
+    personalities = [
+        "conservative and values traditional rights",
+        "liberal and values public safety",
+        "libertarian who prioritizes individual freedom",
+        "moderate who weighs both sides carefully",
+        "progressive who advocates for stricter regulations",
+    ]
+    profiles = []
+    all_ids = list(range(1, n + 1))
+    for i in range(n):
+        aid = i + 1
+        opinion = random.uniform(1.0, 4.0) if random.random() < 0.5 else random.uniform(6.0, 9.0)
+        friends = random.sample([x for x in all_ids if x != aid], k=min(3, n - 1))
+        profiles.append({
+            "id": aid,
+            "name": NAMES[i % len(NAMES)],
+            "personality": random.choice(personalities),
+            "initial_opinion": round(opinion, 1),
+            "friends": friends,
+        })
+    return profiles
+
+
+# ── UI ──
+
+def render():
+    st.header("Polarization Experiment (Paper Sec 7.2)")
+    st.caption("Branch: `paper-polarization`")
+
+    with st.expander("이 예제에 대하여", expanded=False):
+        st.markdown(DESCRIPTION)
 
     n_agents = st.number_input("Agents", 4, 20, 10)
     n_rounds = st.number_input("Rounds", 1, 5, 2)
@@ -70,7 +143,6 @@ def render():
 
     if st.button("Run Experiment") and conditions and require_api_key():
         profiles = _generate_profiles(n_agents, seed)
-
         all_results = {}
         progress = st.progress(0)
 
@@ -91,7 +163,6 @@ def render():
                 fig = go.Figure()
                 initial = list(result["initial"].values())
                 final = list(result["final"].values())
-                names = list(result["initial"].keys())
 
                 fig.add_trace(go.Scatter(
                     x=initial, y=[1]*len(initial), mode="markers",
@@ -101,7 +172,6 @@ def render():
                     x=final, y=[0]*len(final), mode="markers",
                     name="After", marker=dict(size=12, color="#e74c3c"),
                 ))
-                # Arrows
                 for ini, fin in zip(initial, final):
                     fig.add_annotation(
                         x=fin, y=0, ax=ini, ay=1, xref="x", yref="y",
@@ -119,10 +189,8 @@ def render():
                          f"Moderated: **{result['moderated_pct']}%** | "
                          f"Unchanged: **{result['unchanged']}**")
 
-        # Comparison table
         st.markdown("---")
         st.subheader("Comparison with Paper")
-
         paper = {"control": (39, 33), "homophilic": (52, None), "heterogeneous": (None, 89)}
         rows = []
         for cond in all_results:
@@ -138,48 +206,63 @@ def render():
         st.table(rows)
 
 
+# ── Experiment logic (faithful to original run_condition) ──
+
 async def _run_condition(condition, profiles, num_rounds):
     from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
-    from agentsociety2_lite.env import EnvBase, tool
     from datetime import datetime
 
-    initial = {p["name"]: p["initial_opinion"] for p in profiles}
-    opinions = dict(initial)
-
+    env = PolarizationSocialSpace(agent_profiles=profiles)
     agents = [PersonAgent(id=p["id"], profile={
         "name": p["name"], "personality": p["personality"],
-        "background": f"Opinion on gun control: {p['initial_opinion']:.1f}/10",
+        "background": f"Opinion on gun control: {p['initial_opinion']:.1f}/10 (0=oppose, 10=support)",
     }) for p in profiles]
 
-    env = SimplePolarizationEnv(opinions)
-    router = CodeGenRouter(env_modules=[env])
-    society = AgentSociety(agents=agents, env_router=router, start_t=datetime.now())
+    society = AgentSociety(agents=agents, env_router=CodeGenRouter(env_modules=[env]),
+                           start_t=datetime.now())
     await society.init()
+    initial = env.get_opinions_snapshot()
 
     for rnd in range(num_rounds):
         for p in profiles:
             aid = p["id"]
+
             if condition == "homophilic":
-                msg = (f"You are {p['name']}. Opinion: {opinions[p['name']]:.1f}/10. "
-                       f"Talk with someone who AGREES with you. State your updated opinion 0-10.")
+                # Select peer with same-side opinion (faithful to original)
+                same = [pr["id"] for pr in profiles if pr["id"] != aid
+                        and (initial[pr["id"]] > 5) == (initial[aid] > 5)]
+                peer_id = random.choice(same) if same else random.choice(p["friends"])
+                peer_name = env._agent_names.get(peer_id, f"Agent{peer_id}")
+                msg = (f"You are {p['name']}. Your opinion on gun control: {initial[aid]:.1f}/10. "
+                       f"You are talking with {peer_name} who AGREES with you on gun control. "
+                       f"After discussion, state your updated opinion as a number 0-10.")
+
             elif condition == "heterogeneous":
-                msg = (f"You are {p['name']}. Opinion: {opinions[p['name']]:.1f}/10. "
-                       f"Talk with someone who DISAGREES. Listen carefully. Updated opinion 0-10.")
-            else:
-                msg = (f"You are {p['name']}. Opinion: {opinions[p['name']]:.1f}/10. "
-                       f"Discuss gun control naturally. State your updated opinion 0-10.")
+                # Select peer with opposing opinion (faithful to original)
+                opp = [pr["id"] for pr in profiles if pr["id"] != aid
+                       and (initial[pr["id"]] > 5) != (initial[aid] > 5)]
+                peer_id = random.choice(opp) if opp else random.choice(p["friends"])
+                peer_name = env._agent_names.get(peer_id, f"Agent{peer_id}")
+                msg = (f"You are {p['name']}. Your opinion on gun control: {initial[aid]:.1f}/10. "
+                       f"You are talking with {peer_name} who DISAGREES with you on gun control. "
+                       f"Listen carefully to their perspective. State your updated opinion as a number 0-10.")
+
+            else:  # control
+                msg = (f"You are {p['name']}. Your opinion on gun control: {initial[aid]:.1f}/10. "
+                       f"Discuss gun control naturally. State your updated opinion as a number 0-10.")
 
             resp = await society.ask(msg)
             match = re.search(r"(\d+(?:\.\d+)?)", resp)
             if match:
-                opinions[p["name"]] = max(0, min(10, float(match.group(1))))
+                env._opinions[aid] = max(0, min(10, float(match.group(1))))
 
+    final = env.get_opinions_snapshot()
     await society.close()
 
     polarized = moderated = unchanged = 0
-    for name in initial:
-        d_init = abs(initial[name] - 5)
-        d_final = abs(opinions[name] - 5)
+    for aid in initial:
+        d_init = abs(initial[aid] - 5)
+        d_final = abs(final[aid] - 5)
         if d_final > d_init + 0.5:
             polarized += 1
         elif d_final < d_init - 0.5:
@@ -193,18 +276,6 @@ async def _run_condition(condition, profiles, num_rounds):
         "polarized_pct": round(100 * polarized / total, 1),
         "moderated_pct": round(100 * moderated / total, 1),
         "unchanged": unchanged,
-        "initial": initial,
-        "final": opinions,
+        "initial": {env._agent_names[k]: v for k, v in initial.items()},
+        "final": {env._agent_names[k]: v for k, v in final.items()},
     }
-
-
-class SimplePolarizationEnv(EnvBase):
-    def __init__(self, opinions):
-        super().__init__()
-        self._opinions = opinions
-
-    @tool(readonly=True, kind="observe")
-    def get_all_opinions(self) -> str:
-        """Get all agents' opinions on gun control."""
-        lines = [f"{name}: {op:.1f}/10" for name, op in self._opinions.items()]
-        return "Opinions:\n" + "\n".join(lines)

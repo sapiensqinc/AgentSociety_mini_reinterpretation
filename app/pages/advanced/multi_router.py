@@ -1,4 +1,4 @@
-"""02. Multi-Router Comparison — compare ReAct, PlanExecute, CodeGen."""
+"""02. Multi-Router Comparison -- compare ReAct, PlanExecute, CodeGen."""
 
 import asyncio
 import time
@@ -97,15 +97,17 @@ def render():
         st.markdown("---")
         st.markdown("""
 **Router Characteristics:**
-- **ReAct**: Think \u2192 Act \u2192 Observe loop. Good for iterative reasoning.
+- **ReAct**: Think -> Act -> Observe loop. Good for iterative reasoning.
 - **PlanExecute**: Plan first, then execute step by step. Good for complex multi-step tasks.
 - **CodeGen**: Generate code to solve. Most token-efficient for computation tasks.
         """)
 
 
 async def _run_router(router_cls_name, question):
+    from agentsociety2_lite import PersonAgent, AgentSociety
     from agentsociety2_lite.env import ReActRouter, PlanExecuteRouter, CodeGenRouter
     from agentsociety2_lite.contrib import SimpleSocialSpace
+    from datetime import datetime
 
     router_map = {
         "ReActRouter": ReActRouter,
@@ -113,6 +115,30 @@ async def _run_router(router_cls_name, question):
         "CodeGenRouter": CodeGenRouter,
     }
 
-    env = SimpleSocialSpace(agent_id_name_pairs=[(1, "Tester")])
-    router = router_map[router_cls_name](env_modules=[env])
-    return await router.route(question, system="You are a helpful analytical assistant.")
+    # Create agent for the society
+    agent = PersonAgent(
+        id=1,
+        profile={
+            "name": "Tester",
+            "personality": "analytical and helpful",
+        },
+    )
+
+    # Create router and register environment module
+    env_router = router_map[router_cls_name]()
+    env_router.register_module(
+        SimpleSocialSpace(agent_id_name_pairs=[(agent.id, agent.name)])
+    )
+
+    # Create and run through AgentSociety
+    society = AgentSociety(
+        agents=[agent],
+        env_router=env_router,
+        start_t=datetime.now(),
+    )
+    await society.init()
+
+    response = await society.ask(question)
+
+    await society.close()
+    return response
