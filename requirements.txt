@@ -1,21 +1,27 @@
-# AgentSociety Replica - Dependencies
-# Python 3.14 compatible, litellm-free (security: supply chain attack 2026.03)
+# AgentSociety Replica - Pinned Dependencies
+#
+# SECURITY: All versions pinned with >= min and < major-next to prevent
+# supply-chain surprises while allowing security patches.
+# For maximum reproducibility use: pip install --require-hashes -r requirements-lock.txt
+#
+# Context: litellm supply-chain attack (March 2026) — this project uses
+# google-genai directly to eliminate that risk.
 
 # === Core: LLM Backend ===
-google-genai>=1.0.0          # Gemini API SDK (replaces litellm)
+google-genai>=1.72.0,<2.0.0
 
 # === Core: Data & Config ===
-pydantic>=2.0                # Data validation
-json-repair>=0.30.0          # LLM JSON output repair
-python-dotenv>=1.0.0         # .env file loading
+pydantic>=2.12.0,<3.0.0
+json-repair>=0.59.0,<1.0.0
+python-dotenv>=1.2.0,<2.0.0
 
 # === Storage ===
-sqlalchemy>=2.0              # ReplayWriter (SQLite)
+sqlalchemy>=2.0.49,<3.0.0
 
 # === UI ===
-streamlit>=1.30              # Web dashboard
-plotly>=5.0                  # Interactive charts
-pyvis>=0.3                   # Network graph visualization
+streamlit>=1.56.0,<2.0.0
+plotly>=6.7.0,<7.0.0
+pyvis>=0.3.2,<1.0.0
 
-# === Async (optional) ===
-aiohttp>=3.10                # Async HTTP client
+# === Async ===
+aiohttp>=3.13.0,<4.0.0

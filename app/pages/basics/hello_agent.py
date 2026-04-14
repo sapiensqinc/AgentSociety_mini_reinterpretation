@@ -3,6 +3,7 @@
 import asyncio
 import streamlit as st
 from app.config import require_api_key
+from app.security import ready_to_run, sanitize_user_input, show_safe_error
 from app.components.agent_card import agent_card
 
 
@@ -76,7 +77,13 @@ LLM을 연결하여 처리됩니다. 환경에 등록된 에이전트 목록 조
     elif user_input:
         question = user_input
 
-    if question and require_api_key():
+    if question and ready_to_run(tag="hello_agent"):
+        try:
+            question = sanitize_user_input(question)
+        except ValueError as e:
+            st.error(str(e))
+            return
+
         # Display user message
         st.session_state.hello_history.append({"role": "user", "content": question})
         with st.chat_message("user"):
@@ -85,7 +92,11 @@ LLM을 연결하여 처리됩니다. 환경에 등록된 에이전트 목록 조
         # Generate and display response
         with st.chat_message("assistant"):
             with st.spinner("Alice is thinking..."):
-                response = asyncio.run(_ask(question))
+                try:
+                    response = asyncio.run(_ask(question))
+                except Exception as e:
+                    show_safe_error(e, context="Failed to process request")
+                    return
             st.markdown(response)
 
         st.session_state.hello_history.append({"role": "assistant", "content": response})
