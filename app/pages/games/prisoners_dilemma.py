@@ -4,6 +4,7 @@ import asyncio
 import streamlit as st
 import plotly.graph_objects as go
 from app.config import require_api_key
+from app.security import ready_to_run, show_safe_error
 
 
 def render():
@@ -61,9 +62,13 @@ def render():
         fig.update_layout(height=200, margin=dict(l=0, r=0, t=0, b=0))
         st.plotly_chart(fig, use_container_width=True)
 
-    if st.button("Run Game") and require_api_key():
+    if st.button("Run Game") and ready_to_run(tag="prisoners_dilemma"):
         with st.spinner("Agents are deciding..."):
-            result = asyncio.run(_run_game(c_reward, d_punish, tempt, sucker))
+            try:
+                result = asyncio.run(_run_game(c_reward, d_punish, tempt, sucker))
+            except Exception as e:
+                show_safe_error(e, context="Failed to run game")
+                return
 
         col_a, col_b = st.columns(2)
         with col_a:

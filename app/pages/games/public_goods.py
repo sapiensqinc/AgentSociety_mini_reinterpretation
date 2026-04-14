@@ -5,6 +5,7 @@ import re
 import streamlit as st
 import plotly.graph_objects as go
 from app.config import require_api_key
+from app.security import ready_to_run, cap, show_safe_error
 
 
 AGENT_PROFILES = [
@@ -41,11 +42,15 @@ def render():
     col1, col2, col3 = st.columns(3)
     endowment = col1.number_input("Endowment ($)", 10, 1000, 100)
     factor = col2.number_input("Multiplier", 1.0, 5.0, 1.5, 0.1)
-    rounds = col3.number_input("Rounds", 1, 10, 3)
+    rounds = cap("rounds", col3.number_input("Rounds", 1, 10, 3))
 
-    if st.button("Start Game") and require_api_key():
+    if st.button("Start Game") and ready_to_run(tag="public_goods"):
         with st.spinner("Running game..."):
-            results = asyncio.run(_run_game(endowment, factor, int(rounds)))
+            try:
+                results = asyncio.run(_run_game(endowment, factor, int(rounds)))
+            except Exception as e:
+                show_safe_error(e, context="Failed to run game")
+                return
 
         # Show each round
         for rnd in results["rounds"]:
