@@ -3,6 +3,7 @@
 import asyncio
 import streamlit as st
 from app.config import require_api_key
+from app.security import ready_to_run, show_safe_error
 
 
 def render():
@@ -36,9 +37,13 @@ def render():
     st.subheader("Record Interactions")
     agent_names = ["Agent1 (friendly)", "Agent2 (curious)", "Agent3 (friendly)"]
 
-    if st.button("Run Simulation", disabled=not require_api_key()) and require_api_key():
+    if st.button("Run Simulation") and ready_to_run(tag="replay_system"):
         with st.spinner("Running agent interactions..."):
-            results = asyncio.run(_run_simulation())
+            try:
+                results = asyncio.run(_run_simulation())
+            except Exception as e:
+                show_safe_error(e, context="Failed to run simulation")
+                return
             st.session_state.replay_data = results
             st.session_state.replay_step = 0
         st.rerun()

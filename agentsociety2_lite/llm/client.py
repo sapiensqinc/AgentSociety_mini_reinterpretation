@@ -1,27 +1,59 @@
-"""Gemini LLM client — replaces litellm with direct google-genai SDK."""
+"""Gemini LLM client — replaces litellm with direct google-genai SDK.
+
+Security:
+- In local development, API key is loaded from .env.local (gitignored).
+- In deployed (Streamlit Cloud) environment, .env files are not present;
+  the key must be supplied by the caller via set_api_key() in session state.
+- Gemini safety filters are set to BLOCK_MEDIUM_AND_ABOVE for all categories.
+- Output token cap prevents runaway generation.
+"""
 
 import os
 import asyncio
-import inspect
 from typing import Any
 
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-# Load .env.local first (user secrets), then .env (defaults). .env.local takes priority.
-load_dotenv(".env.local", override=True)
-load_dotenv(".env", override=False)
+# Load .env.local (dev secrets) then .env (defaults). Both gitignored.
+# In Streamlit Cloud deployment these files don't exist — key must come from session_state.
+try:
+    load_dotenv(".env.local", override=True)
+    load_dotenv(".env", override=False)
+except Exception:
+    pass  # dotenv absence is acceptable in deployed environments
 
-# Global singleton
+# Output limit to prevent runaway generation / cost overflow
+MAX_OUTPUT_TOKENS = 2048
+
+# Global singleton (but reinstantiated when API key changes)
 _client: "GeminiClient | None" = None
+_cached_key: str = ""
 
 
 def get_client() -> "GeminiClient":
-    global _client
-    if _client is None:
-        _client = GeminiClient()
+    """Return the Gemini client, rebuilding it if the API key has changed."""
+    global _client, _cached_key
+    current_key = os.getenv("GEMINI_API_KEY", "")
+    if _client is None or current_key != _cached_key:
+        _client = GeminiClient(api_key=current_key or None)
+        _cached_key = current_key
     return _client
+
+
+def _safety_settings() -> list[types.SafetySetting]:
+    """Strictest practical safety: block medium and above for all categories."""
+    categories = [
+        "HARM_CATEGORY_HARASSMENT",
+        "HARM_CATEGORY_HATE_SPEECH",
+        "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "HARM_CATEGORY_DANGEROUS_CONTENT",
+    ]
+    return [
+        types.SafetySetting(category=c, threshold="BLOCK_MEDIUM_AND_ABOVE")
+        for c in categories
+    ]
 
 
 class GeminiClient:
@@ -32,6 +64,10 @@ class GeminiClient:
     ):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        if not self.api_key:
+            raise RuntimeError(
+                "Gemini API key not provided. Users must enter their own key via the sidebar."
+            )
         self._client = genai.Client(api_key=self.api_key)
 
     async def complete(
@@ -42,6 +78,8 @@ class GeminiClient:
     ) -> str:
         config = types.GenerateContentConfig(
             temperature=temperature,
+            max_output_tokens=MAX_OUTPUT_TOKENS,
+            safety_settings=_safety_settings(),
         )
         if system:
             config.system_instruction = system
@@ -71,6 +109,8 @@ class GeminiClient:
 
         config = types.GenerateContentConfig(
             temperature=temperature,
+            max_output_tokens=MAX_OUTPUT_TOKENS,
+            safety_settings=_safety_settings(),
             tools=gemini_tools,
         )
         if system:

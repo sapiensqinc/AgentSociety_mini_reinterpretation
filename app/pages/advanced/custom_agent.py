@@ -3,6 +3,7 @@
 import asyncio
 import streamlit as st
 from app.config import require_api_key
+from app.security import ready_to_run, cap, sanitize_user_input, show_safe_error
 
 
 def render():
@@ -34,9 +35,19 @@ RecursiveAgent는 Chain-of-Thought(CoT) 패턴으로 질문을 하위 질문으�
         question = st.text_input("Question", "What should cities do to prepare for extreme weather?",
                                   key="spec_q")
 
-        if st.button("Ask Specialist", key="run_spec") and require_api_key():
+        if st.button("Ask Specialist", key="run_spec") and ready_to_run(tag="custom_agent"):
+            try:
+                specialty = sanitize_user_input(specialty)
+                question = sanitize_user_input(question)
+            except ValueError as e:
+                st.error(str(e))
+                return
             with st.spinner("Specialist is thinking..."):
-                response, enhanced = asyncio.run(_run_specialist(specialty, question))
+                try:
+                    response, enhanced = asyncio.run(_run_specialist(specialty, question))
+                except Exception as e:
+                    show_safe_error(e, context="Failed to process request")
+                    return
             with st.expander("Internal Enhancement (actual prompt sent)"):
                 st.code(enhanced)
             st.success(response)
@@ -44,20 +55,38 @@ RecursiveAgent는 Chain-of-Thought(CoT) 패턴으로 질문을 하위 질문으�
     with tab2:
         st.subheader("Specialty Reflection")
         refl_specialty = st.text_input("Specialty", "environmental science", key="refl_spec")
-        if st.button("Reflect", key="run_refl") and require_api_key():
+        if st.button("Reflect", key="run_refl") and ready_to_run(tag="custom_agent"):
+            try:
+                refl_specialty = sanitize_user_input(refl_specialty)
+            except ValueError as e:
+                st.error(str(e))
+                return
             with st.spinner("Reflecting..."):
-                response = asyncio.run(_run_reflection(refl_specialty))
+                try:
+                    response = asyncio.run(_run_reflection(refl_specialty))
+                except Exception as e:
+                    show_safe_error(e, context="Failed to process request")
+                    return
             st.success(response)
 
     with tab3:
         st.subheader("Recursive Agent (Chain-of-Thought)")
         cot_question = st.text_input("Question", "How can we reduce urban traffic congestion?",
                                       key="cot_q")
-        depth = st.slider("Recursion Depth", 1, 3, 2)
+        depth = cap("cot_depth", st.slider("Recursion Depth", 1, 3, 2))
 
-        if st.button("Think Deeply", key="run_cot") and require_api_key():
+        if st.button("Think Deeply", key="run_cot") and ready_to_run(tag="custom_agent"):
+            try:
+                cot_question = sanitize_user_input(cot_question)
+            except ValueError as e:
+                st.error(str(e))
+                return
             with st.spinner("Decomposing and analyzing..."):
-                result = asyncio.run(_run_cot(cot_question, depth))
+                try:
+                    result = asyncio.run(_run_cot(cot_question, depth))
+                except Exception as e:
+                    show_safe_error(e, context="Failed to process request")
+                    return
 
             if result["sub_questions"]:
                 st.markdown("**Step 1: Decompose**")
