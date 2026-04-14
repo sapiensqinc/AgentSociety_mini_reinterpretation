@@ -5,6 +5,7 @@ import time
 import streamlit as st
 import plotly.graph_objects as go
 from app.config import require_api_key
+from app.security import ready_to_run, sanitize_user_input, show_safe_error
 
 
 DESCRIPTION = """
@@ -49,7 +50,13 @@ def render():
     else:
         question = st.text_area("Question", "Enter your question here...", height=100)
 
-    if st.button("Run All Routers") and question and require_api_key():
+    if st.button("Run All Routers") and question and ready_to_run(tag="multi_router"):
+        try:
+            question = sanitize_user_input(question)
+        except ValueError as e:
+            st.error(str(e))
+            return
+
         results = {}
 
         col1, col2, col3 = st.columns(3)
@@ -64,7 +71,11 @@ def render():
                 st.subheader(name)
                 with st.spinner(f"{name} processing..."):
                     start = time.time()
-                    response = asyncio.run(_run_router(router_cls, question))
+                    try:
+                        response = asyncio.run(_run_router(router_cls, question))
+                    except Exception as e:
+                        show_safe_error(e, context=f"{name} failed")
+                        return
                     elapsed = time.time() - start
 
                 results[name] = {"response": response, "time": elapsed}

@@ -8,6 +8,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from app.config import require_api_key
+from app.security import ready_to_run, cap, show_safe_error
 from agentsociety2_lite.env import EnvBase, tool
 
 
@@ -127,9 +128,9 @@ def render():
     with st.expander("이 예제에 대하여", expanded=False):
         st.markdown(DESCRIPTION)
 
-    n_agents = st.number_input("Agents", 4, 16, 8)
+    n_agents = cap("agents", st.number_input("Agents", 4, 16, 8))
     ubi_amount = st.number_input("UBI Amount ($/month)", 0, 5000, 1000, 100)
-    months = st.number_input("Months", 1, 6, 3)
+    months = cap("rounds", st.number_input("Months", 1, 6, 3))
 
     profiles = _generate_profiles(n_agents)
 
@@ -140,11 +141,19 @@ def render():
             "Happiness": p["happiness"],
         } for p in profiles])
 
-    if st.button("Run Experiment") and require_api_key():
+    if st.button("Run Experiment") and ready_to_run(tag="ubi"):
         with st.spinner("Running No UBI condition..."):
-            r_no = asyncio.run(_run_ubi(profiles, 0, months))
+            try:
+                r_no = asyncio.run(_run_ubi(profiles, 0, months))
+            except Exception as e:
+                show_safe_error(e, context="Failed to run No UBI condition")
+                return
         with st.spinner("Running UBI condition..."):
-            r_yes = asyncio.run(_run_ubi(profiles, ubi_amount, months))
+            try:
+                r_yes = asyncio.run(_run_ubi(profiles, ubi_amount, months))
+            except Exception as e:
+                show_safe_error(e, context="Failed to run UBI condition")
+                return
 
         # Charts
         st.markdown("---")

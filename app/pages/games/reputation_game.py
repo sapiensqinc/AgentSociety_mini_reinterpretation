@@ -10,6 +10,7 @@ import random
 import streamlit as st
 import plotly.graph_objects as go
 from app.config import require_api_key
+from app.security import ready_to_run, cap, show_safe_error
 from agentsociety2_lite.env import EnvBase, tool
 
 
@@ -162,15 +163,19 @@ def render():
         st.markdown(DESCRIPTION)
 
     col1, col2, col3 = st.columns(3)
-    z = col1.number_input("Population (Z)", 4, 20, 8)
+    z = cap("agents", col1.number_input("Population (Z)", 4, 20, 8))
     benefit = col2.number_input("Benefit", 1, 20, 5)
     cost = col3.number_input("Cost", 1, 10, 1)
     norm = st.selectbox("Social Norm", ["stern_judging", "image_score", "simple_standing"])
-    steps = st.slider("Simulation Steps", 5, 30, 10)
+    steps = cap("steps", st.slider("Simulation Steps", 5, 30, 10))
 
-    if st.button("Run Simulation") and require_api_key():
+    if st.button("Run Simulation") and ready_to_run(tag="reputation_game"):
         with st.spinner(f"Running {steps} steps with {z} agents..."):
-            results = asyncio.run(_run_reputation(z, benefit, cost, norm, steps))
+            try:
+                results = asyncio.run(_run_reputation(z, benefit, cost, norm, steps))
+            except Exception as e:
+                show_safe_error(e, context="Failed to run simulation")
+                return
 
         col_net, col_chart = st.columns([1, 1])
 
