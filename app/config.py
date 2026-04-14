@@ -1,11 +1,16 @@
-"""Shared configuration and session state management."""
+"""Shared configuration and session state management.
+
+Security model:
+- No server-side API key is ever loaded or used in deployed environments.
+- Users MUST provide their own Gemini API key (BYOK - Bring Your Own Key).
+- The key is stored only in Streamlit session_state (per-user, in-memory).
+"""
 
 import os
 import sys
 import streamlit as st
 from pathlib import Path
 
-# Add project root to path so agentsociety2_lite is importable
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -13,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 def init_session():
     defaults = {
+        "api_key": "",
         "chat_history": [],
         "experiment_results": {},
         "current_page": None,
@@ -23,20 +29,29 @@ def init_session():
 
 
 def get_api_key() -> str:
+    """Return the user's Gemini API key from session state only."""
     return st.session_state.get("api_key", "")
 
 
 def set_api_key(key: str):
+    """Set the user's Gemini API key.
+
+    Stored only in session_state (not persisted to disk, never logged).
+    Also sets GEMINI_API_KEY env var for the agentsociety2_lite client,
+    scoped to this Python process only.
+    """
+    key = (key or "").strip()
     st.session_state["api_key"] = key
-    os.environ["GEMINI_API_KEY"] = key
+    if key:
+        os.environ["GEMINI_API_KEY"] = key
+    else:
+        os.environ.pop("GEMINI_API_KEY", None)
 
 
 def require_api_key() -> bool:
-    """Check if API key is set. Show warning if not. Returns True if ready."""
-    if get_api_key():
-        return True
-    st.warning("Gemini API Key\uac00 \ud544\uc694\ud569\ub2c8\ub2e4. \uc0ac\uc774\ub4dc\ubc14\uc5d0\uc11c \uc785\ub825\ud574\uc8fc\uc138\uc694.")
-    return False
+    """Legacy wrapper for backward compatibility. Use security.require_byok()."""
+    from app.security import require_byok
+    return require_byok()
 
 
 def clear_chat():

@@ -278,24 +278,30 @@ elif category == "Paper Experiments":
         "Hurricane Impact (Sec 7.5)",
     ])
 
-# API Key input
+# API Key input — BYOK (Bring Your Own Key) enforcement
 st.sidebar.markdown("---")
+st.sidebar.markdown("### Gemini API Key")
+st.sidebar.caption(
+    "이 앱은 **BYOK** 방식으로 동작합니다. "
+    "서버에 저장된 키가 없으며 사용자 본인의 키만 사용됩니다."
+)
 api_key = st.sidebar.text_input(
-    "Gemini API Key",
+    "API Key",
     value=get_api_key(),
     type="password",
-    help="Get your key at https://aistudio.google.com/apikey",
+    help="https://aistudio.google.com/apikey 에서 무료로 발급",
+    label_visibility="collapsed",
 )
 if api_key:
     set_api_key(api_key)
-    st.sidebar.success("API Key set")
+    st.sidebar.success("API Key 입력됨 (세션 메모리에만 저장)")
 else:
-    st.sidebar.warning("API Key required")
+    st.sidebar.warning("API Key 입력 필요")
 
 st.sidebar.markdown("---")
 st.sidebar.caption(
     "Based on [AgentSociety](https://arxiv.org/abs/2502.08691) paper.  \n"
-    "Uses `agentsociety2_lite` (no litellm)."
+    "No litellm, no server-side key storage."
 )
 
 # --- Main Content ---
