@@ -10,6 +10,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from app.config import require_api_key
+from app.security import ready_to_run, cap, show_safe_error
 from agentsociety2_lite.env import EnvBase, tool
 
 
@@ -131,8 +132,8 @@ def render():
     with st.expander("이 예제에 대하여", expanded=False):
         st.markdown(DESCRIPTION)
 
-    n_agents = st.number_input("Agents", 4, 20, 10)
-    n_rounds = st.number_input("Rounds", 1, 5, 2)
+    n_agents = cap("agents", st.number_input("Agents", 4, 20, 10))
+    n_rounds = cap("rounds", st.number_input("Rounds", 1, 5, 2))
     seed = st.number_input("Random Seed", 0, 100, 42)
 
     conditions = st.multiselect(
@@ -141,7 +142,7 @@ def render():
         default=["control", "homophilic", "heterogeneous"],
     )
 
-    if st.button("Run Experiment") and conditions and require_api_key():
+    if st.button("Run Experiment") and conditions and ready_to_run(tag="polarization"):
         profiles = _generate_profiles(n_agents, seed)
         all_results = {}
         progress = st.progress(0)
@@ -149,7 +150,11 @@ def render():
         for ci, cond in enumerate(conditions):
             st.subheader(f"Condition: {cond.upper()}")
             with st.spinner(f"Running {cond}..."):
-                result = asyncio.run(_run_condition(cond, profiles, n_rounds))
+                try:
+                    result = asyncio.run(_run_condition(cond, profiles, n_rounds))
+                except Exception as e:
+                    show_safe_error(e, context=f"Failed to run {cond}")
+                    return
                 all_results[cond] = result
             progress.progress((ci + 1) / len(conditions))
 

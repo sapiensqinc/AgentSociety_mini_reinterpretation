@@ -3,6 +3,7 @@
 import asyncio
 import streamlit as st
 from app.config import require_api_key
+from app.security import ready_to_run, sanitize_user_input, show_safe_error
 
 
 def render():
@@ -106,7 +107,13 @@ LLM이 자연어 질의를 자동으로 적절한 도구 호출로 변환합니�
         query = st.text_input("Ask or command the environment...")
         mode = st.radio("Mode", ["Ask (readonly)", "Intervene (write)"], horizontal=True)
 
-        if st.button("Execute") and query and require_api_key():
+        if st.button("Execute") and query and ready_to_run(tag="custom_env"):
+            try:
+                query = sanitize_user_input(query)
+            except ValueError as e:
+                st.error(str(e))
+                return
+
             with st.spinner("Processing..."):
                 from agentsociety2_lite import PersonAgent, AgentSociety
                 from datetime import datetime
@@ -115,10 +122,14 @@ LLM이 자연어 질의를 자동으로 적절한 도구 호출로 변환합니�
                 router = CodeGenRouter(env_modules=[env])
                 society = AgentSociety(agents=agents, env_router=router, start_t=datetime.now())
 
-                if mode.startswith("Ask"):
-                    response = asyncio.run(_query(society, query, readonly=True))
-                else:
-                    response = asyncio.run(_query(society, query, readonly=False))
+                try:
+                    if mode.startswith("Ask"):
+                        response = asyncio.run(_query(society, query, readonly=True))
+                    else:
+                        response = asyncio.run(_query(society, query, readonly=False))
+                except Exception as e:
+                    show_safe_error(e, context="Failed to process request")
+                    return
 
                 st.session_state.env_log.append(f"{'Ask' if mode.startswith('Ask') else 'Intervene'}: {query}")
                 st.session_state.env_log.append(f"  \u2192 {response[:200]}")
