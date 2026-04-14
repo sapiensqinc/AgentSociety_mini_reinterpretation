@@ -5,6 +5,7 @@ import random
 import streamlit as st
 import plotly.graph_objects as go
 from app.config import require_api_key
+from app.security import ready_to_run, cap, show_safe_error
 from agentsociety2_lite.env import EnvBase, tool
 from typing import Dict, List
 
@@ -118,7 +119,7 @@ def render():
     with st.expander("이 예제에 대하여", expanded=False):
         st.markdown(DESCRIPTION)
 
-    n_agents = st.number_input("Agents (Columbia SC residents)", 6, 20, 10)
+    n_agents = cap("agents", st.number_input("Agents (Columbia SC residents)", 6, 20, 10))
 
     # Weather schedule display
     with st.expander("9-Day Weather Schedule"):
@@ -129,9 +130,13 @@ def render():
             "Hurricane": "YES" if w["hurricane"] else "",
         } for w in WEATHER_SCHEDULE])
 
-    if st.button("Run Simulation") and require_api_key():
+    if st.button("Run Simulation") and ready_to_run(tag="hurricane"):
         with st.spinner(f"Simulating 9 days with {n_agents} agents..."):
-            results = asyncio.run(_run_hurricane(n_agents))
+            try:
+                results = asyncio.run(_run_hurricane(n_agents))
+            except Exception as e:
+                show_safe_error(e, context="Failed to run simulation")
+                return
 
         # Activity bar chart
         st.subheader("Activity Level Over 9 Days")
