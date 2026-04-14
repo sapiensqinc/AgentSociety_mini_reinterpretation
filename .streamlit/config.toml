@@ -1,0 +1,36 @@
+# Streamlit configuration - hardened for public deployment
+
+[server]
+# Enable XSRF protection (default true, but explicit)
+enableXsrfProtection = true
+# Disable CORS - Streamlit Community Cloud handles this
+enableCORS = false
+# Run without opening browser
+headless = true
+# Max upload size (MB) - we don't accept uploads, keep small
+maxUploadSize = 5
+# Max message size (MB) - cap WebSocket payloads
+maxMessageSize = 50
+
+[browser]
+# Do not send usage telemetry
+gatherUsageStats = false
+
+[client]
+# Hide stack traces from users (prevents internal leakage)
+showErrorDetails = false
+# Minimal toolbar (no "Deploy" button, no source view)
+toolbarMode = "minimal"
+
+[runner]
+# Kill scripts that hang (e.g., runaway LLM loops)
+fastReruns = true
+# Fail fast on unhandled exceptions
+enforceSerializableSessionState = true
+
+[theme]
+# Consistent, accessible theme
+primaryColor = "#2E86AB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"

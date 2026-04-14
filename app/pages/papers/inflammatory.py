@@ -7,6 +7,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from app.config import require_api_key
+from app.security import ready_to_run, cap, show_safe_error
 from agentsociety2_lite.env import EnvBase, tool
 from datetime import datetime
 from typing import Dict, List
@@ -133,8 +134,8 @@ def render():
 실제 사회 실험이 불가능한 개입 전략들을 LLM 에이전트로 비교 평가할 수 있습니다.
         """)
 
-    n_agents = st.number_input("Network Size", 6, 20, 10)
-    n_steps = st.number_input("Steps", 2, 8, 4)
+    n_agents = cap("agents", st.number_input("Network Size", 6, 20, 10))
+    n_steps = cap("steps", st.number_input("Steps", 2, 8, 4))
 
     conditions = st.multiselect(
         "Conditions",
@@ -142,7 +143,7 @@ def render():
         default=["control", "experimental"],
     )
 
-    if st.button("Run Experiment") and conditions and require_api_key():
+    if st.button("Run Experiment") and conditions and ready_to_run(tag="inflammatory"):
         all_results = {}
         progress = st.progress(0)
 
@@ -150,9 +151,13 @@ def render():
             with st.spinner(f"Running {cond}..."):
                 is_inflammatory = cond != "control"
                 msg = INFLAMMATORY_MSG if is_inflammatory else NORMAL_MSG
-                result = asyncio.run(_run_spread(
-                    cond, n_agents, msg, is_inflammatory, n_steps
-                ))
+                try:
+                    result = asyncio.run(_run_spread(
+                        cond, n_agents, msg, is_inflammatory, n_steps
+                    ))
+                except Exception as e:
+                    show_safe_error(e, context=f"Failed to run {cond}")
+                    return
                 all_results[cond] = result
             progress.progress((ci + 1) / len(conditions))
 
