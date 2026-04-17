@@ -513,7 +513,7 @@ _VIEWER_HTML = r"""<!doctype html>
 </head>
 <body>
 <header>
-  <h1>AgentSociety Replica — Scenario Timeline Viewer</h1>
+  <h1>AgentSociety Mini Reinterpretation — Scenario Timeline Viewer</h1>
   <span class="sub">좌측에서 시나리오 선택 · 재생/일시정지 · 스크러버로 자유 이동</span>
 </header>
 <main>

@@ -1,4 +1,4 @@
-"""AgentSociety Replica — Streamlit App Entry Point.
+"""AgentSociety Mini Reinterpretation — Streamlit App Entry Point.
 
 Usage: streamlit run run.py
 """
@@ -17,7 +17,7 @@ from app.config import init_session, set_api_key, get_api_key
 
 def _render_home():
     # Hero section
-    st.title("AgentSociety Replica")
+    st.title("AgentSociety Mini Reinterpretation")
     st.caption("LLM 기반 사회 시뮬레이션의 재현 및 실험 플랫폼 — arXiv:2502.08691 기반")
 
     # Quick stats
@@ -227,11 +227,11 @@ def _render_home():
             "**Quick Start** — 사이드바에서 Gemini API Key 입력 → 원하는 예제 선택 → 실행\n\n"
             "**참고** — 논문 [arXiv:2502.08691](https://arxiv.org/abs/2502.08691) · "
             "[원본 코드](https://github.com/tsinghua-fib-lab/AgentSociety) · "
-            "[본 프로젝트 코드](https://github.com/sapiensqinc/AgentSociety_Replica)"
+            "[본 프로젝트 코드](https://github.com/sapiensqinc/AgentSociety_mini_reinterpretation)"
         )
 
 st.set_page_config(
-    page_title="AgentSociety Replica",
+    page_title="AgentSociety Mini Reinterpretation",
     page_icon="AS",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -240,7 +240,7 @@ st.set_page_config(
 init_session()
 
 # --- Sidebar ---
-st.sidebar.title("AgentSociety Replica")
+st.sidebar.title("AgentSociety Mini Reinterpretation")
 st.sidebar.caption("Python 3.14 + Gemini API")
 st.sidebar.markdown("---")
 

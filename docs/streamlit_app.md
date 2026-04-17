@@ -49,13 +49,13 @@ app/
 import streamlit as st
 
 st.set_page_config(
-    page_title="AgentSociety Replica",
+    page_title="AgentSociety Mini Reinterpretation",
     page_icon="🏛️",
     layout="wide",
 )
 
 # Sidebar navigation
-st.sidebar.title("AgentSociety Replica")
+st.sidebar.title("AgentSociety Mini Reinterpretation")
 st.sidebar.markdown("---")
 
 category = st.sidebar.selectbox("Category", [
@@ -184,7 +184,7 @@ def render():
 
 ```bash
 # From project root
-cd AgentSociety_Replica
+cd AgentSociety_mini_reinterpretation
 source .venv/Scripts/activate  # or .venv/bin/activate on Linux/Mac
 streamlit run app/app.py
 ```

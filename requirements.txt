@@ -1,4 +1,4 @@
-# AgentSociety Replica - Pinned Dependencies
+# AgentSociety Mini Reinterpretation - Pinned Dependencies
 #
 # SECURITY: All versions pinned with >= min and < major-next to prevent
 # supply-chain surprises while allowing security patches.
