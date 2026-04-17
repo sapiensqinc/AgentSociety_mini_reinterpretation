@@ -4,6 +4,44 @@ import asyncio
 import streamlit as st
 from app.config import require_api_key
 from app.security import ready_to_run, sanitize_user_input, show_safe_error
+from agentsociety2_lite.env import EnvBase, tool, CodeGenRouter
+
+
+# Defined at module scope (not inside render()) so that instances can be
+# pickled by Streamlit's session-state serialization check. A class defined
+# inside render() has __qualname__ = "render.<locals>.WeatherEnvironment",
+# which pickle cannot resolve on deserialization — it throws
+# UnserializableSessionStateError when the user navigates to another page.
+class WeatherEnvironment(EnvBase):
+    def __init__(self):
+        super().__init__()
+        self._weather = "sunny"
+        self._temperature = 25
+        self._agent_locations = {}
+
+    @tool(readonly=True, kind="observe")
+    def get_weather(self, agent_id: int) -> str:
+        """Get the current weather for an agent's location."""
+        location = self._agent_locations.get(agent_id, "unknown location")
+        return f"The weather in {location} is {self._weather} with {self._temperature}\u00b0C."
+
+    @tool(readonly=False)
+    def change_weather(self, weather: str, temperature: int) -> str:
+        """Change the weather conditions."""
+        self._weather = weather
+        self._temperature = temperature
+        return f"Weather changed to {weather} at {temperature}\u00b0C."
+
+    @tool(readonly=False)
+    def set_agent_location(self, agent_id: int, location: str) -> str:
+        """Set an agent's location."""
+        self._agent_locations[agent_id] = location
+        return f"Agent {agent_id} is now in {location}."
+
+    @tool(readonly=True, kind="statistics")
+    def get_average_temperature(self) -> str:
+        """Get the current average temperature."""
+        return f"The current temperature is {self._temperature}\u00b0C."
 
 
 def render():
@@ -30,42 +68,10 @@ Python 클래스 하나로 날씨, 경제, 소셜 네트워크 등 어떤 환경
 LLM이 자연어 질의를 자동으로 적절한 도구 호출로 변환합니다.
         """)
 
-    from agentsociety2_lite.env import EnvBase, tool, CodeGenRouter
-
-    # Define the weather environment inline (same as original script)
-    class WeatherEnvironment(EnvBase):
-        def __init__(self):
-            super().__init__()
-            self._weather = "sunny"
-            self._temperature = 25
-            self._agent_locations = {}
-
-        @tool(readonly=True, kind="observe")
-        def get_weather(self, agent_id: int) -> str:
-            """Get the current weather for an agent's location."""
-            location = self._agent_locations.get(agent_id, "unknown location")
-            return f"The weather in {location} is {self._weather} with {self._temperature}\u00b0C."
-
-        @tool(readonly=False)
-        def change_weather(self, weather: str, temperature: int) -> str:
-            """Change the weather conditions."""
-            self._weather = weather
-            self._temperature = temperature
-            return f"Weather changed to {weather} at {temperature}\u00b0C."
-
-        @tool(readonly=False)
-        def set_agent_location(self, agent_id: int, location: str) -> str:
-            """Set an agent's location."""
-            self._agent_locations[agent_id] = location
-            return f"Agent {agent_id} is now in {location}."
-
-        @tool(readonly=True, kind="statistics")
-        def get_average_temperature(self) -> str:
-            """Get the current average temperature."""
-            return f"The current temperature is {self._temperature}\u00b0C."
-
     # Initialize environment in session state
-    if "weather_env" not in st.session_state:
+    if "weather_env" not in st.session_state or not isinstance(
+        st.session_state.get("weather_env"), WeatherEnvironment
+    ):
         st.session_state.weather_env = WeatherEnvironment()
         st.session_state.env_log = []
 
