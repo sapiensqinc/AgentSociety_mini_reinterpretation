@@ -1,11 +1,9 @@
 # AgentSociety Replica
 
 AgentSociety 논문의 비교 분석 및 실행 가능한 예시 모음.
-Python 3.14 호환 + Gemini API 기반 + Streamlit 시각화 UI.
+
 
 ## Architecture
-
-원본 `agentsociety2` 패키지(45+ 의존성, litellm 보안 이슈)를 대체하는 경량 코어 라이브러리(`agentsociety2_lite`)를 사용합니다.
 
 ```
 agentsociety2_lite/     ← 경량 코어 (Gemini 백엔드)
@@ -48,22 +46,6 @@ cp .env.example .env
 streamlit run app/app.py
 ```
 
-## Dependencies
-
-| Package | Purpose | Security |
-|---------|---------|:--------:|
-| google-genai | Gemini LLM API | SAFE |
-| pydantic | Data validation | SAFE |
-| json-repair | LLM JSON repair | CAUTION |
-| python-dotenv | .env loading | SAFE |
-| sqlalchemy | Replay DB | SAFE |
-| streamlit | Web UI | CAUTION |
-| plotly | Charts | SAFE |
-| pyvis | Network graphs | CAUTION |
-
-litellm은 2026년 3월 공급망 공격으로 인해 의존성에서 완전히 제거되었습니다.
-자세한 내용: [docs/security_review.md](docs/security_review.md)
-
 ## Documentation
 
 - [Architecture](docs/architecture.md) — 경량 코어 라이브러리 설계
@@ -97,4 +79,3 @@ litellm은 2026년 3월 공급망 공격으로 인해 의존성에서 완전히 
 
 - **논문**: arXiv:2502.08691 (2025.02.12)
 - **원본 코드**: [tsinghua-fib-lab/AgentSociety](https://github.com/tsinghua-fib-lab/AgentSociety)
-- 논문 실험(v1)은 agentsociety2(v2) API 기반으로 재구현 후, Python 3.14 + Gemini로 재구성
