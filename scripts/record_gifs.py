@@ -493,6 +493,7 @@ _VIEWER_HTML = r"""<!doctype html>
   aside .item.active { background: #1e2430; border-left-color: #4f8bff; color: #fff; }
   aside .item .count { color: #8a8f98; font-size: 11px; margin-left: 6px; }
   section.player { padding: 16px 24px; overflow-y: auto; }
+  .stage { max-width: 900px; }
   .frame-wrap { background: #1a1e26; border: 1px solid #23262d; border-radius: 8px; overflow: hidden; }
   .frame-wrap img { display: block; width: 100%; height: auto; }
   .controls { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
@@ -518,6 +519,7 @@ _VIEWER_HTML = r"""<!doctype html>
 <main>
   <aside id="sidebar"></aside>
   <section class="player">
+    <div class="stage">
     <div id="title-area">
       <h2 class="scenario-title" id="scn-title">시나리오를 선택하세요</h2>
       <p class="scenario-sub" id="scn-sub"></p>
@@ -538,6 +540,7 @@ _VIEWER_HTML = r"""<!doctype html>
     </div>
     <div class="hint">
       <kbd>Space</kbd> 재생/일시정지 · <kbd>←</kbd> <kbd>→</kbd> 프레임 이동 · <kbd>Home</kbd>/<kbd>End</kbd> 처음/끝 · <kbd>1</kbd>–<kbd>4</kbd> 속도
+    </div>
     </div>
   </section>
 </main>
