@@ -11,3 +11,19 @@ log/
 results/
 output/
 .venv/
+
+# Ad-hoc debug dumps inside scripts/ — production scripts only (record_gifs, extract_from_gifs)
+scripts/*.png
+scripts/*.jpg
+scripts/*.jpeg
+scripts/*.webm
+scripts/*.mp4
+scripts/probe_*.py
+scripts/sidebar.html
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

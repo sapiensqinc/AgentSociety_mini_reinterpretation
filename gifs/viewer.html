@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<!-- CSP: frame-ancestors cannot be set via <meta>; set that header server-side. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<title>AgentSociety mini-reinterpretation — Scenario Timeline Viewer</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; background: #0f1115; color: #e7e7ea; }
+  header { padding: 14px 20px; border-bottom: 1px solid #23262d; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .sub { font-size: 12px; color: #8a8f98; }
+  main { display: grid; grid-template-columns: 260px 1fr; gap: 0; min-height: calc(100vh - 55px); }
+  aside { border-right: 1px solid #23262d; overflow-y: auto; background: #12151b; }
+  aside h2 { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #8a8f98; margin: 16px 20px 6px; }
+  aside .item { padding: 8px 20px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; }
+  aside .item:hover { background: #1a1e26; }
+  aside .item.active { background: #1e2430; border-left-color: #4f8bff; color: #fff; }
+  aside .item .count { color: #8a8f98; font-size: 11px; margin-left: 6px; }
+  section.player { padding: 16px 24px; overflow-y: auto; }
+  .frame-wrap { background: #1a1e26; border: 1px solid #23262d; border-radius: 8px; overflow: hidden; }
+  .frame-wrap img { display: block; width: 100%; height: auto; }
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button { background: #2a3142; border: 1px solid #384055; color: #e7e7ea; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+  button:hover { background: #333b4e; }
+  button.primary { background: #3b6fe0; border-color: #3b6fe0; }
+  button.primary:hover { background: #4a7cec; }
+  input[type=range] { flex: 1; accent-color: #4f8bff; }
+  .meta { font-size: 12px; color: #8a8f98; margin-left: auto; }
+  .scenario-title { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .scenario-sub { font-size: 12px; color: #8a8f98; margin: 0 0 10px; }
+  .speed { display: inline-flex; gap: 4px; }
+  .speed button.on { background: #3b6fe0; border-color: #3b6fe0; }
+  kbd { background: #2a3142; border: 1px solid #384055; border-radius: 3px; padding: 1px 5px; font-size: 11px; }
+  .hint { font-size: 11px; color: #6b7380; margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AgentSociety Replica — Scenario Timeline Viewer</h1>
+  <span class="sub">좌측에서 시나리오 선택 · 재생/일시정지 · 스크러버로 자유 이동</span>
+</header>
+<main>
+  <aside id="sidebar"></aside>
+  <section class="player">
+    <div id="title-area">
+      <h2 class="scenario-title" id="scn-title">시나리오를 선택하세요</h2>
+      <p class="scenario-sub" id="scn-sub"></p>
+    </div>
+    <div class="frame-wrap"><img id="frame" alt="" /></div>
+    <div class="controls">
+      <button id="btn-prev" title="Prev (←)">◀</button>
+      <button id="btn-play" class="primary" title="Play/Pause (Space)">▶ Play</button>
+      <button id="btn-next" title="Next (→)">▶</button>
+      <input type="range" id="scrub" min="0" max="0" value="0" />
+      <span class="speed">
+        <button data-speed="0.5">0.5×</button>
+        <button data-speed="1" class="on">1×</button>
+        <button data-speed="2">2×</button>
+        <button data-speed="4">4×</button>
+      </span>
+      <span class="meta" id="meta">— / —</span>
+    </div>
+    <div class="hint">
+      <kbd>Space</kbd> 재생/일시정지 · <kbd>←</kbd> <kbd>→</kbd> 프레임 이동 · <kbd>Home</kbd>/<kbd>End</kbd> 처음/끝 · <kbd>1</kbd>–<kbd>4</kbd> 속도
+    </div>
+  </section>
+</main>
+
+<script>
+(async () => {
+  // --- safety helpers ----------------------------------------------------
+  // Only accept category/slug/frame strings that match a strict allowlist.
+  // Prevents path traversal (../), absolute paths, javascript:/data: URLs,
+  // or stray characters that could escape the gifs/ directory.
+  const SAFE_SEG = /^[A-Za-z0-9_\-.]+$/;        // single path segment
+  const SAFE_SLUG = /^[A-Za-z0-9_\-]+\/[A-Za-z0-9_\-]+$/;  // "category/name"
+  const isSafeSeg = s => typeof s === "string" && SAFE_SEG.test(s) && !s.includes("..");
+  const isSafeSlug = s => typeof s === "string" && SAFE_SLUG.test(s);
+  const isFiniteNum = n => typeof n === "number" && Number.isFinite(n);
+
+  let manifest;
+  try {
+    manifest = await fetch("manifest.json").then(r => r.json());
+  } catch (e) { console.error("manifest load failed", e); return; }
+
+  const scenarios = (manifest.scenarios || []).filter(s =>
+    s && isSafeSlug(s.slug) && typeof s.category === "string" && typeof s.example === "string"
+  );
+
+  const sidebar = document.getElementById("sidebar");
+  const byCat = {};
+  scenarios.forEach(s => { (byCat[s.category] ||= []).push(s); });
+  Object.entries(byCat).forEach(([cat, list]) => {
+    const h = document.createElement("h2"); h.textContent = cat; sidebar.appendChild(h);
+    list.forEach(s => {
+      const d = document.createElement("div");
+      d.className = "item"; d.dataset.slug = s.slug;
+      // DOM construction only (no innerHTML) to neutralize XSS from any manifest field.
+      d.appendChild(document.createTextNode(s.example));
+      const c = document.createElement("span");
+      c.className = "count";
+      c.textContent = `${s.frame_count | 0} frames`;
+      d.appendChild(c);
+      d.onclick = () => load(s);
+      sidebar.appendChild(d);
+    });
+  });
+
+  const frameImg = document.getElementById("frame");
+  const scrub = document.getElementById("scrub");
+  const btnPlay = document.getElementById("btn-play");
+  const btnPrev = document.getElementById("btn-prev");
+  const btnNext = document.getElementById("btn-next");
+  const metaSpan = document.getElementById("meta");
+  const title = document.getElementById("scn-title");
+  const sub = document.getElementById("scn-sub");
+
+  let current = null, frames = [], times = [], idx = 0, playing = false, timer = null, speed = 1, fps = 1.25;
+  const baseMs = () => (1000 / fps) / speed;
+
+  function render() {
+    if (!current) return;
+    const fname = frames[idx];
+    if (!isSafeSeg(fname)) return;  // refuse any non-allowlisted frame name
+    frameImg.src = `${current.frames_base}/${fname}`;
+    scrub.value = idx;
+    const t = times[idx];
+    const ts = isFiniteNum(t) ? t : 0;
+    metaSpan.textContent = `${idx + 1} / ${frames.length} · ${ts.toFixed(1)}s`;
+  }
+
+  function step(dir) {
+    if (!current) return;
+    idx = Math.max(0, Math.min(frames.length - 1, idx + dir));
+    render();
+  }
+
+  function setPlaying(on) {
+    playing = on;
+    btnPlay.textContent = on ? "❚❚ Pause" : "▶ Play";
+    if (timer) clearInterval(timer);
+    if (on) {
+      timer = setInterval(() => {
+        if (idx >= frames.length - 1) { setPlaying(false); return; }
+        idx++; render();
+      }, baseMs());
+    }
+  }
+
+  async function load(s) {
+    if (!isSafeSlug(s.slug)) return;
+    document.querySelectorAll(".item").forEach(e => e.classList.toggle("active", e.dataset.slug === s.slug));
+    title.textContent = s.example;
+    const totalSec = isFiniteNum(s.total_seconds) ? s.total_seconds : 0;
+    sub.textContent = `${s.category} · ${s.frame_count | 0} frames · ${totalSec.toFixed(1)}s · ${s.slug}`;
+    const [cat, name] = s.slug.split("/");
+    if (!isSafeSeg(cat) || !isSafeSeg(name)) return;
+    // Always derive paths from the (validated) slug — never trust meta_path directly.
+    const metaUrl = `${cat}/${name}.json`;
+    const meta = await fetch(metaUrl).then(r => r.json()).catch(() => null);
+    if (!meta) return;
+    const validFrames = Array.isArray(meta.frames) ? meta.frames.filter(isSafeSeg) : [];
+    const validTimes = Array.isArray(meta.timestamps) ? meta.timestamps.filter(isFiniteNum) : [];
+    if (!validFrames.length) return;
+    frames = validFrames;
+    times = validTimes;
+    fps = isFiniteNum(meta.fps) && meta.fps > 0 && meta.fps <= 60 ? meta.fps : 1.25;
+    current = { slug: s.slug, frames_base: `${cat}/${name}_frames` };
+    idx = 0;
+    scrub.max = frames.length - 1;
+    setPlaying(false);
+    render();
+  }
+
+  btnPlay.onclick = () => setPlaying(!playing);
+  btnPrev.onclick = () => step(-1);
+  btnNext.onclick = () => step(1);
+  scrub.oninput = () => { idx = parseInt(scrub.value); render(); if (playing) setPlaying(true); };
+  document.querySelectorAll(".speed button").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll(".speed button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      speed = parseFloat(b.dataset.speed);
+      if (playing) setPlaying(true);
+    };
+  });
+  document.addEventListener("keydown", (e) => {
+    if (!current) return;
+    if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+    else if (e.code === "ArrowLeft") step(-1);
+    else if (e.code === "ArrowRight") step(1);
+    else if (e.code === "Home") { idx = 0; render(); }
+    else if (e.code === "End") { idx = frames.length - 1; render(); }
+    else if (e.key >= "1" && e.key <= "4") {
+      const map = {"1":0.5,"2":1,"3":2,"4":4};
+      speed = map[e.key];
+      document.querySelectorAll(".speed button").forEach(b => b.classList.toggle("on", parseFloat(b.dataset.speed) === speed));
+      if (playing) setPlaying(true);
+    }
+  });
+
+  if (manifest.scenarios.length) load(manifest.scenarios[0]);
+})();
+</script>
+</body>
+</html>

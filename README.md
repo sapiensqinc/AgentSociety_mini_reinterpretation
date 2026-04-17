@@ -1,81 +1,121 @@
-# AgentSociety Replica
+# AgentSociety-mini-reinterpretation
 
-AgentSociety 논문의 비교 분석 및 실행 가능한 예시 모음.
+A mini reinterpretation of Piao et al.'s **AgentSociety: Large-Scale Simulation of LLM-Driven Generative Agents Advances Understanding of Human Behaviors and Society** (Piao et al., 2025). Scoped for research/demo replay.
 
+## What this is
 
-## Architecture
+**Keeps** the paper's core contribution:
+- LLM-driven generative agents with emotion / needs / cognition layers (Paper §3)
+- Social environment composed of urban space, social space, and economic space (§4)
+- The four flagship social simulations: **Polarization**, **Inflammatory Messages**, **Universal Basic Income**, **Hurricane Impact** (§7.2–§7.5)
+- Environment router abstraction (`ReAct` / `PlanExecute` / `CodeGen`) as interchangeable strategies
+
+**Adds**:
+- **Python 3.14 compatibility** — the original `agentsociety2` pins ≤ 3.13
+- **9-dependency core** (down from 45+): `google-genai`, `pydantic`, `json-repair`, `python-dotenv`, `sqlalchemy`, `streamlit`, `plotly`, `pyvis`, `aiohttp`
+- **BYOK security model** — no server-side key storage, per-session rate limits, prompt-injection input sanitization, simulation-parameter caps against DoS
+- **Playwright-based GIF recorder + HTML timeline viewer** for every scenario (`gifs/viewer.html`) — play / pause / scrub / speed, no server round-trip after initial load
+
+**GIF preview** (Hurricane Impact, §7.5)
+
+![hurricane](gifs/papers/hurricane.gif)
+
+Twelve scenarios recorded end-to-end — see [`gifs/`](gifs/) or open [`gifs/viewer.html`](gifs/viewer.html) for the scrubbable timeline.
+
+## Directory layout
 
 ```
-agentsociety2_lite/     ← 경량 코어 (Gemini 백엔드)
-app/                    ← Streamlit 통합 UI
-docs/                   ← 예제별 UI 디자인 + 시나리오
-examples/               ← 실험 스크립트 (브랜치별)
+AgentSociety_mini_reinterpretation/
+├── run.py                      # Streamlit entry point (home + routing)
+├── requirements.txt
+├── agentsociety2_lite/         # lightweight core library
+│   ├── llm/                    # Gemini client (direct google-genai)
+│   ├── agent/                  # PersonAgent + base
+│   ├── env/                    # environment router (ReAct, PlanExecute, CodeGen)
+│   ├── society/                # AgentSociety orchestrator
+│   ├── contrib/                # optional env modules (social, games)
+│   └── storage/                # replay writer (SQLite)
+├── app/
+│   ├── config.py               # BYOK session state
+│   ├── security.py             # rate limit + input sanitization + param caps
+│   ├── components/             # agent_card, chat_view
+│   └── pages/
+│       ├── basics/             # hello_agent, custom_env, replay_system
+│       ├── advanced/           # custom_agent, multi_router
+│       ├── games/              # prisoner's dilemma, public goods, reputation
+│       └── papers/             # polarization, inflammatory, ubi, hurricane
+├── docs/                       # architecture, security review, per-example design
+├── scripts/
+│   ├── record_gifs.py          # Playwright driver + GIF writer
+│   └── extract_from_gifs.py    # regenerate viewer frames from existing GIFs
+└── gifs/
+    ├── <category>/<name>.gif           # per-scenario animated GIF
+    ├── <category>/<name>_frames/*.jpg  # raw frames for the viewer
+    ├── <category>/<name>.json          # frame list + timestamps
+    ├── manifest.json                   # index of all scenarios
+    └── viewer.html                     # scrubbable timeline player
 ```
 
-## Branches
-
-| Branch | Description | Examples |
-|--------|-------------|----------|
-| **main** | 코어 라이브러리 + UI + 문서 | - |
-| **examples-basics** | 기본 예시 | hello agent, custom env, replay |
-| **examples-advanced** | 고급 예시 | custom agent, multi router |
-| **examples-games** | 게임이론 | prisoner's dilemma, public goods, reputation |
-| **paper-polarization** | 논문 7.2 | 총기규제 의견 양극화 |
-| **paper-inflammatory** | 논문 7.3 | 선동적 메시지 확산 |
-| **paper-ubi** | 논문 7.4 | 보편적 기본소득(UBI) |
-| **paper-hurricane** | 논문 7.5 | 허리케인 외부 충격 |
-
-## Quick Start
+## Quick start
 
 ```bash
-# 1. Clone & setup
-git clone https://github.com/sapiensqinc/AgentSociety_Replica.git
-cd AgentSociety_Replica
+# 1. install
 python -m venv .venv
-source .venv/Scripts/activate  # Windows
-# source .venv/bin/activate    # Linux/Mac
-
-# 2. Install dependencies
+source .venv/Scripts/activate     # Windows
+# source .venv/bin/activate       # Linux/Mac
 pip install -r requirements.txt
 
-# 3. Configure API key
-cp .env.example .env
-# Edit .env: GEMINI_API_KEY=your-key-here
+# 2. set API key
+#    the app is BYOK — the key is entered in the Streamlit sidebar and
+#    stored only in session state. For local/CI use you can also put it
+#    in .env.local so scripts/record_gifs.py can pick it up.
+cp .env.example .env.local
+# then set GEMINI_API_KEY=...  (default model: gemini-2.5-flash)
 
-# 4. Run Streamlit UI
-streamlit run app/app.py
+# 3. run the Streamlit app (sidebar → category → example → enter API key → run)
+streamlit run run.py
+# open http://localhost:8501
+
+# 4. record every scenario as a GIF (CAUTION: spends Gemini credits)
+#    each scenario uses minimum-cost defaults:
+#      - agents capped to the lower bound
+#      - rounds / steps / months = 1–2
+#      - multiselect conditions trimmed to a single branch
+#    full 12-scenario sweep ≈ $0.05–$0.15 in Gemini Flash credits
+playwright install chromium
+python scripts/record_gifs.py                  # all 12 scenarios
+python scripts/record_gifs.py --only hurricane # one at a time
+python scripts/record_gifs.py --list           # see slugs
+
+# 5. view the recordings (timeline scrubber, play/pause, keyboard shortcuts)
+python -m http.server 8700 --directory gifs
+# open http://localhost:8700/viewer.html
 ```
 
-## Documentation
+## Scenarios
 
-- [Architecture](docs/architecture.md) — 경량 코어 라이브러리 설계
-- [Streamlit App](docs/streamlit_app.md) — UI 구조
-- [Security Review](docs/security_review.md) — 의존성 보안 감사
-- [Paper vs Code](PAPER_VS_CODE.md) — 논문-코드 비교 분석
+| Category | Example | Paper ref | What it demonstrates |
+|----------|---------|-----------|----------------------|
+| Basics | Hello Agent | §3 | Profile → system prompt → LLM dialogue |
+| Basics | Custom Environment | §4 | Environment module + natural-language query via CodeGenRouter |
+| Basics | Replay System | §5 | SQLite event log of agent interactions |
+| Advanced | Custom Agent | §3 | Specialist / Reflection / Recursive-CoT agent variants |
+| Advanced | Multi-Router | §4 | ReAct vs PlanExecute vs CodeGen on the same task |
+| Games | Prisoner's Dilemma | — | 2-agent payoff game + LLM reasoning + reflection |
+| Games | Public Goods | — | N-agent contribution game over multiple rounds |
+| Games | Reputation Game | — | Indirect reciprocity under `stern_judging` / `image_score` / `simple_standing` norms |
+| Papers | Polarization | §7.2 | Opinion shift under homophilic vs heterogeneous exposure |
+| Papers | Inflammatory Messages | §7.3 | Spread of inflammatory content, node / edge moderation |
+| Papers | UBI Policy | §7.4 | Consumption, savings, well-being under monthly UBI |
+| Papers | Hurricane Impact | §7.5 | Pre / during / post evacuation decisions by persona |
 
-### Example Designs (UI Mockups)
+## Attribution
 
-**Basics:**
-- [01. Hello Agent](docs/examples-basics/01_hello_agent.md)
-- [02. Custom Environment](docs/examples-basics/02_custom_env.md)
-- [03. Replay System](docs/examples-basics/03_replay_system.md)
+This project is a reinterpretation of the architecture described in:
 
-**Advanced:**
-- [01. Custom Agent](docs/examples-advanced/01_custom_agent.md)
-- [02. Multi-Router](docs/examples-advanced/02_multi_router.md)
-
-**Games:**
-- [01. Prisoner's Dilemma](docs/examples-games/01_prisoners_dilemma.md)
-- [02. Public Goods](docs/examples-games/02_public_goods.md)
-- [03. Reputation Game](docs/examples-games/03_reputation_game.md)
-
-**Paper Experiments:**
-- [Polarization (Sec 7.2)](docs/paper-experiments/polarization.md)
-- [Inflammatory Messages (Sec 7.3)](docs/paper-experiments/inflammatory.md)
-- [UBI Policy (Sec 7.4)](docs/paper-experiments/ubi.md)
-- [Hurricane Impact (Sec 7.5)](docs/paper-experiments/hurricane.md)
-
-## References
-
-- **논문**: arXiv:2502.08691 (2025.02.12)
-- **원본 코드**: [tsinghua-fib-lab/AgentSociety](https://github.com/tsinghua-fib-lab/AgentSociety)
+> Jinghua Piao, Yuwei Yan, Jun Zhang, Nian Li, Junbo Yan, Xiaochong Lan, Zhihong Lu,
+> Zhiheng Zheng, Jing Yi Wang, Di Zhou, Chen Gao, Fengli Xu, Fang Zhang, Ke Rong,
+> Jun Su, and Yong Li. 2025.
+> *AgentSociety: Large-Scale Simulation of LLM-Driven Generative Agents Advances Understanding of Human Behaviors and Society.*
+> [Paper](https://arxiv.org/abs/2502.08691) ·
+> [Original repo](https://github.com/tsinghua-fib-lab/AgentSociety)

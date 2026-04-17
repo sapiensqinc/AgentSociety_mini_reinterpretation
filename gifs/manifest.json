@@ -1,0 +1,124 @@
+{
+  "scenarios": [
+    {
+      "slug": "basics/hello_agent",
+      "category": "Basics",
+      "example": "01. Hello Agent",
+      "meta_path": "basics/hello_agent.json",
+      "gif_path": "basics/hello_agent.gif",
+      "frames_dir": "basics/hello_agent_frames",
+      "frame_count": 13,
+      "total_seconds": 10.697
+    },
+    {
+      "slug": "basics/custom_env",
+      "category": "Basics",
+      "example": "02. Custom Environment",
+      "meta_path": "basics/custom_env.json",
+      "gif_path": "basics/custom_env.gif",
+      "frames_dir": "basics/custom_env_frames",
+      "frame_count": 21,
+      "total_seconds": 15.125
+    },
+    {
+      "slug": "basics/replay_system",
+      "category": "Basics",
+      "example": "03. Replay System",
+      "meta_path": "basics/replay_system.json",
+      "gif_path": "basics/replay_system.gif",
+      "frames_dir": "basics/replay_system_frames",
+      "frame_count": 21,
+      "total_seconds": 15.257
+    },
+    {
+      "slug": "advanced/custom_agent",
+      "category": "Advanced",
+      "example": "01. Custom Agent",
+      "meta_path": "advanced/custom_agent.json",
+      "gif_path": "advanced/custom_agent.gif",
+      "frames_dir": "advanced/custom_agent_frames",
+      "frame_count": 20,
+      "total_seconds": 13.574
+    },
+    {
+      "slug": "advanced/multi_router",
+      "category": "Advanced",
+      "example": "02. Multi-Router",
+      "meta_path": "advanced/multi_router.json",
+      "gif_path": "advanced/multi_router.gif",
+      "frames_dir": "advanced/multi_router_frames",
+      "frame_count": 34,
+      "total_seconds": 26.527
+    },
+    {
+      "slug": "games/prisoners_dilemma",
+      "category": "Games",
+      "example": "01. Prisoner's Dilemma",
+      "meta_path": "games/prisoners_dilemma.json",
+      "gif_path": "games/prisoners_dilemma.gif",
+      "frames_dir": "games/prisoners_dilemma_frames",
+      "frame_count": 36,
+      "total_seconds": 28.226
+    },
+    {
+      "slug": "games/public_goods",
+      "category": "Games",
+      "example": "02. Public Goods",
+      "meta_path": "games/public_goods.json",
+      "gif_path": "games/public_goods.gif",
+      "frames_dir": "games/public_goods_frames",
+      "frame_count": 52,
+      "total_seconds": 41.501
+    },
+    {
+      "slug": "games/reputation_game",
+      "category": "Games",
+      "example": "03. Reputation Game",
+      "meta_path": "games/reputation_game.json",
+      "gif_path": "games/reputation_game.gif",
+      "frames_dir": "games/reputation_game_frames",
+      "frame_count": 43,
+      "total_seconds": 34.797
+    },
+    {
+      "slug": "papers/polarization",
+      "category": "Paper Experiments",
+      "example": "Polarization",
+      "meta_path": "papers/polarization.json",
+      "gif_path": "papers/polarization.gif",
+      "frames_dir": "papers/polarization_frames",
+      "frame_count": 48,
+      "total_seconds": 39.48
+    },
+    {
+      "slug": "papers/inflammatory",
+      "category": "Paper Experiments",
+      "example": "Inflammatory",
+      "meta_path": "papers/inflammatory.json",
+      "gif_path": "papers/inflammatory.gif",
+      "frames_dir": "papers/inflammatory_frames",
+      "frame_count": 42,
+      "total_seconds": 34.518
+    },
+    {
+      "slug": "papers/ubi",
+      "category": "Paper Experiments",
+      "example": "UBI",
+      "meta_path": "papers/ubi.json",
+      "gif_path": "papers/ubi.gif",
+      "frames_dir": "papers/ubi_frames",
+      "frame_count": 52,
+      "total_seconds": 42.095
+    },
+    {
+      "slug": "papers/hurricane",
+      "category": "Paper Experiments",
+      "example": "Hurricane",
+      "meta_path": "papers/hurricane.json",
+      "gif_path": "papers/hurricane.gif",
+      "frames_dir": "papers/hurricane_frames",
+      "frame_count": 141,
+      "total_seconds": 119.126
+    }
+  ]
+}
