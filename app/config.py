@@ -7,6 +7,7 @@ Security model:
 """
 
 import os
+import pickle
 import sys
 import streamlit as st
 from pathlib import Path
@@ -16,7 +17,34 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
+def _drop_unpicklable_values() -> list[str]:
+    """Remove any session_state entries that can't survive Streamlit's
+    `maybe_check_serializable()` so a stale local-class instance left by a
+    previous deploy can't break every subsequent page navigation.
+    Returns the list of keys that were dropped (for optional surfacing).
+    """
+    dropped = []
+    for key in list(st.session_state.keys()):
+        # Skip Streamlit internal keys (prefixed by underscore or magic)
+        if key.startswith("_") or key.startswith("FormSubmitter:"):
+            continue
+        try:
+            pickle.dumps(st.session_state[key])
+        except Exception:
+            try:
+                del st.session_state[key]
+            except Exception:
+                pass
+            dropped.append(key)
+    return dropped
+
+
 def init_session():
+    # Clean up stale un-picklable values BEFORE Streamlit's end-of-run
+    # serialization check would trigger UnserializableSessionStateError.
+    # Safe to run on every rerun: primitives pickle in microseconds.
+    _drop_unpicklable_values()
+
     defaults = {
         "api_key": "",
         "chat_history": [],
