@@ -3,7 +3,7 @@
 from typing import Any
 
 from .env_base import EnvBase
-from ..llm.client import GeminiClient, get_client
+from ..llm import LLMClient, get_client
 
 
 class TokenUsageStats:
@@ -18,7 +18,7 @@ class RouterBase:
 
     def __init__(self, env_modules: list[EnvBase] | None = None):
         self._modules: list[EnvBase] = env_modules or []
-        self._llm: GeminiClient | None = None
+        self._llm: LLMClient | None = None
         self._replay_writer = None
 
     def register_module(self, module: EnvBase):
@@ -30,7 +30,7 @@ class RouterBase:
     def set_replay_writer(self, writer):
         self._replay_writer = writer
 
-    def _get_llm(self) -> GeminiClient:
+    def _get_llm(self) -> LLMClient:
         if self._llm is None:
             self._llm = get_client()
         return self._llm

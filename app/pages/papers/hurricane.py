@@ -5,7 +5,7 @@ import random
 import streamlit as st
 import plotly.graph_objects as go
 from app.config import require_api_key
-from app.security import ready_to_run, cap, show_safe_error
+from app.security import ready_to_run, cap, show_safe_error, sanitize_llm_output
 from agentsociety2_lite.env import EnvBase, tool
 from typing import Dict, List
 
@@ -178,25 +178,58 @@ def render():
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        # Total Daily Trips (Paper Fig 23) — normalized 9-day time-series
+        st.subheader("Total Daily Trips (Paper Fig 23)")
+        daily_trips = [r["trips"] for r in results["daily"]]
+        max_trips = max(daily_trips) if daily_trips else 1
+        normalized = [t / max_trips for t in daily_trips] if max_trips > 0 else daily_trips
+
+        trip_fig = go.Figure()
+        trip_fig.add_trace(go.Scatter(
+            x=days, y=normalized, mode="lines+markers",
+            name="Simulated (normalized)",
+            line=dict(color="#2E86AB", width=3),
+            marker=dict(size=9),
+        ))
+        trip_fig.add_trace(go.Bar(
+            x=days, y=[t / max_trips for t in daily_trips] if max_trips > 0 else daily_trips,
+            name="Trips (raw, scaled)", marker_color="rgba(46, 134, 171, 0.25)",
+            hovertemplate="%{x}<br>Trips: %{customdata}<extra></extra>",
+            customdata=daily_trips,
+        ))
+        trip_fig.update_layout(
+            yaxis=dict(title="Normalized Daily Trips (max=1.0)", range=[0, 1.1]),
+            height=350, legend=dict(x=0.72, y=1),
+        )
+        st.plotly_chart(trip_fig, use_container_width=True)
+
         # Phase summary
         st.subheader("Phase Summary")
         before = [r["activity"] for r in results["daily"][:3]]
         during = [r["activity"] for r in results["daily"][3:6]]
         after = [r["activity"] for r in results["daily"][6:]]
+        trips_b = sum(r["trips"] for r in results["daily"][:3])
+        trips_d = sum(r["trips"] for r in results["daily"][3:6])
+        trips_a = sum(r["trips"] for r in results["daily"][6:])
 
         col1, col2, col3 = st.columns(3)
         avg_b = sum(before) / len(before)
         avg_d = sum(during) / len(during)
         avg_a = sum(after) / len(after)
 
-        col1.metric("Before (d1-3)", f"{avg_b:.0%}", help="Paper: ~80%")
+        col1.metric("Before (d1-3)", f"{avg_b:.0%}",
+                    help=f"Paper: ~80%. Total trips: {trips_b}")
         col2.metric("During (d4-6)", f"{avg_d:.0%}",
-                     delta=f"{avg_d - avg_b:.0%}", delta_color="inverse",
-                     help="Paper: ~30%")
+                    delta=f"{avg_d - avg_b:.0%}", delta_color="inverse",
+                    help=f"Paper: ~30%. Total trips: {trips_d}")
         col3.metric("After (d7-9)", f"{avg_a:.0%}",
-                     delta=f"{avg_a - avg_d:.0%}", help="Paper: recovery")
+                    delta=f"{avg_a - avg_d:.0%}",
+                    help=f"Paper: recovery. Total trips: {trips_a}")
 
-        st.caption("Paper reference: ~80% before, ~30% during, recovery after")
+        st.caption(
+            "Paper §7.5 reference: Activity Level ~80% before, ~30% during, recovery after. "
+            "Total Daily Trips follows a similar U-shape (Fig 23)."
+        )
 
         # Individual decisions for selected day
         st.markdown("---")
@@ -206,7 +239,7 @@ def render():
             icon = "[OUT]" if d["go_out"] else "[HOME]"
             action = "GO OUT" if d["go_out"] else "STAY HOME"
             with st.expander(f"{icon} {d['name']} ({d['occupation']}): {action}"):
-                st.write(d.get("reasoning", ""))
+                st.write(sanitize_llm_output(d.get("reasoning", "")))
 
 
 async def _run_hurricane(n_agents):
@@ -261,7 +294,13 @@ async def _run_hurricane(n_agents):
             })
 
         activity = env.get_activity_level()
-        daily_results.append({"day": day_info["day"], "activity": activity, "decisions": decisions})
+        daily_trips = sum(1 for going in env._is_traveling.values() if going)
+        daily_results.append({
+            "day": day_info["day"],
+            "activity": activity,
+            "trips": daily_trips,
+            "decisions": decisions,
+        })
 
     await society.close()
     return {"daily": daily_results}

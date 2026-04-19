@@ -1,10 +1,9 @@
-"""Gemini LLM client — replaces litellm with direct google-genai SDK.
+"""Gemini LLM client — direct google-genai SDK.
 
 Security:
-- In local development, API key is loaded from .env.local (gitignored).
-- In deployed (Streamlit Cloud) environment, .env files are not present;
-  the key must be supplied by the caller via set_api_key() in session state.
-- Gemini safety filters are set to BLOCK_MEDIUM_AND_ABOVE for all categories.
+- Local dev: API key from .env.local (gitignored).
+- Deployed (Streamlit Cloud): key must be supplied by caller via session state.
+- Gemini safety filters set to BLOCK_MEDIUM_AND_ABOVE for all categories.
 - Output token cap prevents runaway generation.
 """
 
@@ -16,30 +15,58 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+from .base import LLMClient, MAX_OUTPUT_TOKENS
+
 # Load .env.local (dev secrets) then .env (defaults). Both gitignored.
-# In Streamlit Cloud deployment these files don't exist — key must come from session_state.
+# In Streamlit Cloud deployment these files don't exist — key comes from session_state.
 try:
     load_dotenv(".env.local", override=True)
     load_dotenv(".env", override=False)
 except Exception:
     pass  # dotenv absence is acceptable in deployed environments
 
-# Output limit to prevent runaway generation / cost overflow
-MAX_OUTPUT_TOKENS = 2048
+# Re-export for backward compatibility
+__all__ = ["GeminiClient", "MAX_OUTPUT_TOKENS", "get_client"]
 
-# Global singleton (but reinstantiated when API key changes)
-_client: "GeminiClient | None" = None
+
+# Backend-scoped singletons (rebuilt on key/backend change)
+_client: "LLMClient | None" = None
 _cached_key: str = ""
+_cached_backend: str = ""
 
 
-def get_client() -> "GeminiClient":
-    """Return the Gemini client, rebuilding it if the API key has changed."""
-    global _client, _cached_key
-    current_key = os.getenv("GEMINI_API_KEY", "")
-    if _client is None or current_key != _cached_key:
-        _client = GeminiClient(api_key=current_key or None)
-        _cached_key = current_key
-    return _client
+def get_client() -> LLMClient:
+    """Return the active LLM client.
+
+    Rebuilds when either the API key or the LLM_BACKEND selector changes.
+    Backend choice is controlled by the LLM_BACKEND env var (default: gemini).
+    """
+    global _client, _cached_key, _cached_backend
+
+    backend = (os.getenv("LLM_BACKEND") or "gemini").strip().lower()
+
+    if backend == "gemini":
+        current_key = os.getenv("GEMINI_API_KEY", "")
+        if _client is None or current_key != _cached_key or backend != _cached_backend:
+            _client = GeminiClient(api_key=current_key or None)
+            _cached_key = current_key
+            _cached_backend = backend
+        return _client
+
+    if backend in ("openai_compat", "openai", "oss", "mistral"):
+        # Import lazily so google-genai-only deployments don't require httpx at import time.
+        from .openai_compat import OpenAICompatibleClient
+
+        current_key = os.getenv("LLM_API_KEY", "")
+        if _client is None or current_key != _cached_key or backend != _cached_backend:
+            _client = OpenAICompatibleClient(api_key=current_key or None)
+            _cached_key = current_key
+            _cached_backend = backend
+        return _client
+
+    raise RuntimeError(
+        f"Unknown LLM_BACKEND={backend!r}. Valid: 'gemini', 'openai_compat'."
+    )
 
 
 def _safety_settings() -> list[types.SafetySetting]:
@@ -56,7 +83,7 @@ def _safety_settings() -> list[types.SafetySetting]:
     ]
 
 
-class GeminiClient:
+class GeminiClient(LLMClient):
     def __init__(
         self,
         api_key: str | None = None,
