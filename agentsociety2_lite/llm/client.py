@@ -70,17 +70,27 @@ def get_client() -> LLMClient:
 
 
 def _safety_settings() -> list[types.SafetySetting]:
-    """Strictest practical safety: block medium and above for all categories."""
+    """Safety thresholds for Gemini.
+
+    Default is `BLOCK_MEDIUM_AND_ABOVE` for all four categories — appropriate
+    for the public Streamlit demo.
+
+    Research override: set `LLM_FAITHFUL_SAFETY=off` to relax to
+    `BLOCK_ONLY_HIGH`. Needed for reproducing paper §7.3 inflammatory-message
+    spread, where the default threshold makes agents refuse to forward
+    clearly-inflammatory seed content and the experimental vs control
+    ordering cannot emerge. Never enable this on a public deployment —
+    it broadens what the model will engage with.
+    """
     categories = [
         "HARM_CATEGORY_HARASSMENT",
         "HARM_CATEGORY_HATE_SPEECH",
         "HARM_CATEGORY_SEXUALLY_EXPLICIT",
         "HARM_CATEGORY_DANGEROUS_CONTENT",
     ]
-    return [
-        types.SafetySetting(category=c, threshold="BLOCK_MEDIUM_AND_ABOVE")
-        for c in categories
-    ]
+    mode = (os.getenv("LLM_FAITHFUL_SAFETY") or "on").strip().lower()
+    threshold = "BLOCK_ONLY_HIGH" if mode == "off" else "BLOCK_MEDIUM_AND_ABOVE"
+    return [types.SafetySetting(category=c, threshold=threshold) for c in categories]
 
 
 class GeminiClient(LLMClient):

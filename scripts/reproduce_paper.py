@@ -183,15 +183,15 @@ async def run_public_goods() -> dict:
     }
 
 
-async def run_polarization(mode: str = "broadcast") -> dict:
+async def run_polarization(mode: str = "broadcast", n: int = 10, rounds: int = 2) -> dict:
     from app.pages.papers.polarization import (
         _generate_profiles, _run_condition, _run_broadcast,
     )
-    profiles = _generate_profiles(n=10, seed=42)
+    profiles = _generate_profiles(n=n, seed=42)
     runner = _run_broadcast if mode == "broadcast" else _run_condition
-    out = {}
+    out = {"n_agents": n, "n_rounds": rounds}
     for cond in ("control", "homophilic", "heterogeneous"):
-        res = await runner(cond, profiles, num_rounds=2)
+        res = await runner(cond, profiles, num_rounds=rounds)
         out[cond] = {
             "polarized_pct": res["polarized_pct"],
             "moderated_pct": res["moderated_pct"],
@@ -226,14 +226,13 @@ async def run_inflammatory() -> dict:
     return out
 
 
-async def run_ubi() -> dict:
+async def run_ubi(months: int = 4, ubi_start: int = 2, n: int = 6) -> dict:
     from app.pages.papers.ubi import _run_ubi, _generate_profiles
-    profiles = _generate_profiles(n=6)
-    months = 4
-    ubi_start = 2
+    profiles = _generate_profiles(n=n)
     r_no = await _run_ubi(profiles, 0, months, 0, run_cesd=True)
     r_yes = await _run_ubi(profiles, 1000, months, ubi_start, run_cesd=True)
     return {
+        "n_agents": n,
         "months": months, "ubi_start_month": ubi_start,
         "without_ubi": {
             "final_consumption": r_no["final"]["avg_consumption"],
@@ -281,7 +280,17 @@ async def main():
     ap.add_argument("--only", nargs="*", default=list(SCENARIOS.keys()),
                     help="subset of scenarios to run")
     ap.add_argument("--out", default="results/reproduction_report.json")
+    ap.add_argument("--polarization-n", type=int, default=10)
+    ap.add_argument("--polarization-rounds", type=int, default=2)
+    ap.add_argument("--ubi-months", type=int, default=4)
+    ap.add_argument("--ubi-start", type=int, default=2)
+    ap.add_argument("--ubi-n", type=int, default=6)
     args = ap.parse_args()
+
+    overrides = {
+        "polarization": {"n": args.polarization_n, "rounds": args.polarization_rounds},
+        "ubi": {"months": args.ubi_months, "ubi_start": args.ubi_start, "n": args.ubi_n},
+    }
 
     _must_have_key()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -303,7 +312,8 @@ async def main():
         print(f"\n=== running: {name} ===")
         t0 = time.perf_counter()
         try:
-            data = await fn()
+            kwargs = overrides.get(name, {})
+            data = await fn(**kwargs)
             elapsed = time.perf_counter() - t0
             results["scenarios"][name] = {
                 "ok": True,
