@@ -1,17 +1,41 @@
 """Paper: Polarization Experiment (Section 7.2).
 
-Faithful reproduction of the original run_polarization.py from branch paper-polarization.
+Two execution modes:
+  1. peer-to-peer (default)   — direct 1-hop dialogue pairs, fast
+  2. broadcast + propagation  — persuader agents (Agree/Disagree) push
+     messages into citizen inboxes with a propagation_count; citizens LLM-
+     decide whether to forward; messages with count > 5 are dropped. This
+     mirrors the original `message_agent.py` mechanism in the paper's code.
+
+Paper §7.2:
+- 3 conditions: control / homophilic / heterogeneous
+- Result: control (39%/33%), homophilic (52% polarized), heterogeneous (89%/11%)
 """
 
 import asyncio
 import re
 import random
+from dataclasses import dataclass, field
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from app.config import require_api_key
 from app.security import ready_to_run, cap, show_safe_error
 from agentsociety2_lite.env import EnvBase, tool
+
+
+# Paper mechanism: broadcast messages carry a hop counter; drop after 5 hops.
+# See original examples/polarization/message_agent.py.
+MAX_PROPAGATION_COUNT = 5
+
+
+@dataclass
+class Message:
+    """A persuasion message travelling the social graph."""
+    content: str
+    side: str                         # "pro" or "con" (supports or opposes gun control)
+    propagation_count: int = 1
+    origin_persuader: str = ""        # "Agree" or "Disagree"
 
 
 NAMES = ["Alex", "Jordan", "Taylor", "Morgan", "Casey",
@@ -47,10 +71,17 @@ class PolarizationSocialSpace(EnvBase):
         self._opinions: dict[int, float] = {}
         self._chat_log: list[dict] = []
         self._agent_names: dict[int, str] = {}
+        self._friends: dict[int, list[int]] = {}
+        # Broadcast mechanism state
+        self._inbox: dict[int, list[Message]] = {}
+        self._message_log: list[Message] = []
+        self._dropped_count: int = 0
         for p in agent_profiles:
             aid = p["id"]
             self._agent_names[aid] = p["name"]
             self._opinions[aid] = p.get("initial_opinion", 5.0)
+            self._friends[aid] = p.get("friends", [])
+            self._inbox[aid] = []
 
     @tool(readonly=True, kind="observe")
     def get_agent_opinion(self, agent_id: int) -> str:
@@ -95,6 +126,66 @@ class PolarizationSocialSpace(EnvBase):
     def get_opinions_snapshot(self) -> dict[int, float]:
         return dict(self._opinions)
 
+    # ── Broadcast + propagation mechanism (paper §7.2 message_agent.py) ──
+
+    def deliver(self, to_id: int, message: Message) -> bool:
+        """Push a message into the recipient's inbox.
+
+        Returns True if delivered, False if dropped for exceeding the hop cap.
+        Recording drops lets the UI surface how many messages were filtered.
+        """
+        if message.propagation_count > MAX_PROPAGATION_COUNT:
+            self._dropped_count += 1
+            return False
+        self._inbox[to_id].append(message)
+        self._message_log.append(message)
+        return True
+
+    def drain_inbox(self, agent_id: int) -> list[Message]:
+        msgs = self._inbox.get(agent_id, [])
+        self._inbox[agent_id] = []
+        return msgs
+
+    def broadcast_from_persuader(
+        self,
+        persuader: str,        # "Agree" | "Disagree"
+        side: str,             # "pro" | "con"
+        content: str,
+        citizen_ids: list[int],
+        condition: str,        # "homophilic" | "heterogeneous" | "control"
+    ) -> int:
+        """Seed messages into citizen inboxes based on the experimental condition.
+
+        - control        : every citizen receives the message
+        - homophilic     : only citizens on the same side as the persuader
+        - heterogeneous  : only citizens on the opposing side
+        """
+        delivered = 0
+        for aid in citizen_ids:
+            op = self._opinions.get(aid, 5.0)
+            citizen_side = "pro" if op > 5 else "con" if op < 5 else None
+            if condition == "homophilic" and citizen_side != side:
+                continue
+            if condition == "heterogeneous" and citizen_side == side:
+                continue
+            if self.deliver(aid, Message(
+                content=content, side=side,
+                propagation_count=1, origin_persuader=persuader,
+            )):
+                delivered += 1
+        return delivered
+
+    def get_propagation_stats(self) -> dict:
+        total = len(self._message_log)
+        by_hop: dict[int, int] = {}
+        for m in self._message_log:
+            by_hop[m.propagation_count] = by_hop.get(m.propagation_count, 0) + 1
+        return {
+            "total_delivered": total,
+            "dropped_over_cap": self._dropped_count,
+            "by_hop_count": by_hop,
+        }
+
 
 # ── Profile generation (faithful to original) ──
 
@@ -132,9 +223,22 @@ def render():
     with st.expander("이 예제에 대하여", expanded=False):
         st.markdown(DESCRIPTION)
 
-    n_agents = cap("agents", st.number_input("Agents", 4, 20, 10))
-    n_rounds = cap("rounds", st.number_input("Rounds", 1, 5, 2))
-    seed = st.number_input("Random Seed", 0, 100, 42)
+    col_a, col_b, col_c = st.columns(3)
+    n_agents = cap("agents", col_a.number_input("Agents", 4, 20, 10))
+    n_rounds = cap("rounds", col_b.number_input("Rounds", 1, 5, 2))
+    seed = col_c.number_input("Random Seed", 0, 100, 42)
+
+    mode = st.radio(
+        "Execution mode",
+        ["peer-to-peer (default)", "broadcast + propagation (paper §7.2)"],
+        horizontal=True,
+        help=(
+            "peer-to-peer: 각 라운드마다 1쌍 대화 (빠름, 낮은 비용). "
+            "broadcast: Agree/Disagree 설득자가 inbox에 메시지 주입, "
+            "시민은 LLM으로 forward 결정, propagation_count>5면 drop (논문 구조)."
+        ),
+    )
+    use_broadcast = mode.startswith("broadcast")
 
     conditions = st.multiselect(
         "Conditions",
@@ -147,11 +251,13 @@ def render():
         all_results = {}
         progress = st.progress(0)
 
+        runner = _run_broadcast if use_broadcast else _run_condition
+
         for ci, cond in enumerate(conditions):
             st.subheader(f"Condition: {cond.upper()}")
             with st.spinner(f"Running {cond}..."):
                 try:
-                    result = asyncio.run(_run_condition(cond, profiles, n_rounds))
+                    result = asyncio.run(runner(cond, profiles, n_rounds))
                 except Exception as e:
                     show_safe_error(e, context=f"Failed to run {cond}")
                     return
@@ -209,6 +315,19 @@ def render():
                 "Paper Moderated": pm or "-",
             })
         st.table(rows)
+
+        # Broadcast mode — show propagation statistics (paper §7.2 message_agent)
+        if use_broadcast:
+            st.markdown("---")
+            st.subheader("Propagation Statistics")
+            for cond, r in all_results.items():
+                stats = r.get("propagation_stats")
+                if not stats:
+                    continue
+                with st.expander(f"{cond}: delivered={stats['total_delivered']}, "
+                                 f"dropped (hop>5)={stats['dropped_over_cap']}"):
+                    hops = sorted(stats["by_hop_count"].items())
+                    st.table([{"hop": h, "message count": c} for h, c in hops])
 
 
 # ── Experiment logic (faithful to original run_condition) ──
@@ -283,4 +402,108 @@ async def _run_condition(condition, profiles, num_rounds):
         "unchanged": unchanged,
         "initial": {env._agent_names[k]: v for k, v in initial.items()},
         "final": {env._agent_names[k]: v for k, v in final.items()},
+    }
+
+
+# ── Broadcast + propagation runner (paper message_agent.py equivalent) ──
+
+AGREE_PROMPT = (
+    "You think stronger gun control is a good idea. "
+    "In one sentence, persuade a friend to support it."
+)
+DISAGREE_PROMPT = (
+    "You think stronger gun control is a bad idea. "
+    "In one sentence, persuade a friend to oppose it."
+)
+
+
+async def _run_broadcast(condition, profiles, num_rounds):
+    """Broadcast variant: persuader agents inject messages, citizens forward with hop cap."""
+    from agentsociety2_lite import PersonAgent, CodeGenRouter, AgentSociety
+    from datetime import datetime
+
+    env = PolarizationSocialSpace(agent_profiles=profiles)
+    citizen_ids = [p["id"] for p in profiles]
+
+    agents = [PersonAgent(id=p["id"], profile={
+        "name": p["name"], "personality": p["personality"],
+        "background": f"Opinion on gun control: {p['initial_opinion']:.1f}/10 (0=oppose, 10=support)",
+    }) for p in profiles]
+
+    society = AgentSociety(agents=agents, env_router=CodeGenRouter(env_modules=[env]),
+                           start_t=datetime.now())
+    await society.init()
+    initial = env.get_opinions_snapshot()
+
+    # Generate persuader messages once per run (offline prompt; no per-round LLM cost)
+    agree_msg = "Background checks save lives. Reasonable rules won't take your rights away."
+    disagree_msg = "Gun rights are foundational. More regulation won't stop crime, only law-abiding owners."
+
+    for rnd in range(num_rounds):
+        # Step 1: persuaders broadcast this round
+        env.broadcast_from_persuader(
+            persuader="Agree", side="pro", content=agree_msg,
+            citizen_ids=citizen_ids, condition=condition,
+        )
+        env.broadcast_from_persuader(
+            persuader="Disagree", side="con", content=disagree_msg,
+            citizen_ids=citizen_ids, condition=condition,
+        )
+
+        # Step 2: each citizen processes inbox → LLM decides forward + updated opinion
+        for p in profiles:
+            aid = p["id"]
+            msgs = env.drain_inbox(aid)
+            if not msgs:
+                continue
+            # Aggregate incoming messages into a single prompt to save tokens.
+            incoming = "\n".join(
+                f"- [{m.origin_persuader} says]: {m.content} (hop {m.propagation_count})"
+                for m in msgs
+            )
+            resp = await society.ask(
+                f"You are {p['name']}. Your opinion on gun control: {env._opinions[aid]:.1f}/10. "
+                f"Received messages:\n{incoming}\n"
+                "Decide: (1) state your updated opinion 0-10, "
+                "(2) reply FORWARD or KEEP — should you pass these along to your friends?"
+            )
+            m_num = re.search(r"(\d+(?:\.\d+)?)", resp)
+            if m_num:
+                env._opinions[aid] = max(0, min(10, float(m_num.group(1))))
+
+            if "forward" in resp.lower():
+                # Propagate each message to this citizen's friends with hop++.
+                # Split the hop budget across messages; deliver() drops hop > 5.
+                for m in msgs:
+                    forwarded = Message(
+                        content=m.content, side=m.side,
+                        propagation_count=m.propagation_count + 1,
+                        origin_persuader=m.origin_persuader,
+                    )
+                    for fid in p["friends"]:
+                        env.deliver(fid, forwarded)
+
+    final = env.get_opinions_snapshot()
+    await society.close()
+
+    polarized = moderated = unchanged = 0
+    for aid in initial:
+        d_init = abs(initial[aid] - 5)
+        d_final = abs(final[aid] - 5)
+        if d_final > d_init + 0.5:
+            polarized += 1
+        elif d_final < d_init - 0.5:
+            moderated += 1
+        else:
+            unchanged += 1
+
+    total = len(initial)
+    return {
+        "condition": condition,
+        "polarized_pct": round(100 * polarized / total, 1),
+        "moderated_pct": round(100 * moderated / total, 1),
+        "unchanged": unchanged,
+        "initial": {env._agent_names[k]: v for k, v in initial.items()},
+        "final": {env._agent_names[k]: v for k, v in final.items()},
+        "propagation_stats": env.get_propagation_stats(),
     }
