@@ -24,9 +24,16 @@ PRESET_QUESTIONS = [
 
 def render():
     st.header("01. Hello Agent")
-    st.caption("Branch: `examples-basics`")
+    st.caption("Source: paper §3 · code `agentsociety2/agent/person_agent.py` · mini `agentsociety2_lite/agent/`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 단일 PersonAgent와 대화합니다 — 프로필 기반 시스템 프롬프트가 "
+        "어떻게 에이전트의 응답 스타일을 결정하는지 확인하는 가장 작은 예제.\n\n"
+        "**Expected result.** Alice는 프로필(28세, 친근, SF 거주, 등산/SF소설)을 "
+        "바탕으로 답변하고, 환경에 등록된 에이전트 목록은 도구 호출로 답합니다."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: AgentSociety 논문(arXiv:2502.08691) Section 3 "LLM-driven Social Generative Agents"의 기본 개념을 시연합니다.
 논문에서 에이전트는 감정, 욕구, 인지 계층을 가진 복합 존재로 설계되었으며, 이 예제는 그 중 가장 기초적인 형태인

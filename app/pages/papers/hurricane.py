@@ -113,10 +113,17 @@ class WeatherMobilitySpace(EnvBase):
 
 
 def render():
-    st.header("Hurricane Impact (Paper Sec 7.5)")
-    st.caption("Branch: `paper-hurricane`")
+    st.header("Hurricane Impact (Paper §7.5)")
+    st.caption("Source: paper §7.5 (Hurricane Dorian 2019, Columbia SC) · original code `examples/hurricane_impact/hurricane.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 허리케인 상륙 전/중/후 9일 동안 에이전트의 외출 결정을 시뮬레이션하여 "
+        "실제 SafeGraph 모빌리티 데이터와 유사한 U자형 패턴이 나오는지 확인.\n\n"
+        "**Paper result** (Fig 22/23): 상륙 전 70–90% → 상륙 중 ~30% → 회복. "
+        "이 앱은 15 agents로 축소 (논문은 1,000 agents). Activity Level + Total Daily Trips 2가지 메트릭으로 재현."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown(DESCRIPTION)
 
     n_agents = cap("agents", st.number_input("Agents (Columbia SC residents)", 6, 20, 10))

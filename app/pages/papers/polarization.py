@@ -217,10 +217,20 @@ def _generate_profiles(n=10, seed=42):
 # ── UI ──
 
 def render():
-    st.header("Polarization Experiment (Paper Sec 7.2)")
-    st.caption("Branch: `paper-polarization`")
+    st.header("Polarization Experiment (Paper §7.2)")
+    st.caption("Source: paper §7.2 · original code `examples/polarization/{control,echo_chamber,back_firing,message_agent}.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 총기규제 주제에서 의견 양극화가 사회적 노출 조건에 따라 어떻게 "
+        "변하는지 실험합니다.\n\n"
+        "- **control** — 자연스러운 토론, 외부 개입 없음\n"
+        "- **homophilic** — 같은 의견측 메시지에만 노출 (echo chamber)\n"
+        "- **heterogeneous** — 반대 의견측 메시지에만 노출\n\n"
+        "**Paper result.** control 39% polarized / 33% moderated · homophilic 52% polarized · "
+        "heterogeneous 89% moderated / 11% flipped. 순서가 일치하는지 확인하는 것이 목표."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown(DESCRIPTION)
 
     col_a, col_b, col_c = st.columns(3)

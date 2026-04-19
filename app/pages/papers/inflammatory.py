@@ -147,10 +147,21 @@ class SpreadEnv(EnvBase):
 
 
 def render():
-    st.header("Inflammatory Messages (Paper Sec 7.3)")
-    st.caption("Branch: `paper-inflammatory`")
+    st.header("Inflammatory Messages (Paper §7.3)")
+    st.caption("Source: paper §7.3 (Xuzhou chained-woman case) · original code `examples/inflammatory_message/*.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 선동적 메시지의 소셜 네트워크 확산과 2가지 중재 전략의 효과 비교.\n\n"
+        "- **control** — 평범한 메시지, 자연 확산\n"
+        "- **experimental** — 선동적 메시지, 자연 확산\n"
+        "- **node_intervention** — 반복 공유 계정 정지\n"
+        "- **edge_intervention** — 선동 전달된 엣지 제거\n\n"
+        "**Paper result** (Fig 17): experimental의 spread/emotion이 control보다 크고, "
+        "node > edge intervention 효과. LLM 분류기 옵션은 논문과 동일하게 "
+        "\"플랫폼이 각 메시지를 LLM으로 판정\"하는 메커니즘을 on/off 할 수 있게 해둠."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: 논문 Section 7.3 "Spread of Inflammatory Messages"를 재현한 실험입니다.
 논문에서는 2022년 중국 쉬저우 체인우먼 사건을 모티프로, 선동적 메시지가 소셜 네트워크에서

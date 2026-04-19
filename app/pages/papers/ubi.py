@@ -233,10 +233,18 @@ def _generate_profiles(n=8, seed=42):
 
 
 def render():
-    st.header("UBI Experiment (Paper Sec 7.4)")
-    st.caption("Branch: `paper-ubi`")
+    st.header("UBI Experiment (Paper §7.4)")
+    st.caption("Source: paper §7.4 (Texas UBI pilot) · original code `examples/UBI/main.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 월 $1,000 UBI 지급이 소비·저축·우울증(CES-D)에 미치는 영향을 "
+        "w/UBI vs w/o UBI로 비교합니다. 논문은 step 96에서 UBI 도입 후 24 step 관찰 "
+        "(1 step = 1 month). 이 앱은 UBI 도입 월을 슬라이더로 축소 재현.\n\n"
+        "**Paper result** (Fig 20): UBI 조건에서 consumption ↑, depression (CES-D) ↓. "
+        "방향이 일치하는지 확인. CES-D 체크 시 20문항 Radloff 1977 척도 실행."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown(DESCRIPTION)
 
     col_a, col_b, col_c = st.columns(3)

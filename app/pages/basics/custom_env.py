@@ -46,9 +46,16 @@ class WeatherEnvironment(EnvBase):
 
 def render():
     st.header("02. Custom Environment Module")
-    st.caption("Branch: `examples-basics`")
+    st.caption("Source: paper §4 · code `agentsociety2/env/env_base.py` (`EnvBase` + `@tool`) · mini `agentsociety2_lite/env/`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** `@tool` 데코레이터로 환경 도구를 정의하는 패턴 시연. "
+        "`readonly=True` 도구는 **Ask**에서만, `readonly=False` 도구는 **Intervene**에서만 호출됩니다.\n\n"
+        "**Expected result.** Ask 모드 질의 → `get_weather` 만 호출되고 환경 상태 그대로. "
+        "Intervene 모드 명령 → `change_weather`/`set_agent_location`이 호출되어 State 패널에 반영."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: 논문 Section 4 "Real-world Societal Environment"에서 다루는 환경 모듈 설계를 시연합니다.
 논문에서는 도시 공간(Urban Space, Section 4.2), 사회 공간(Social Space, Section 4.3),

@@ -8,9 +8,16 @@ from app.security import ready_to_run, show_safe_error
 
 def render():
     st.header("03. Replay System")
-    st.caption("Branch: `examples-basics`")
+    st.caption("Source: paper §5.5 / §7.1 · code `agentsociety2/storage/replay_writer.py` · mini `agentsociety2_lite/storage/`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 시뮬레이션 중 일어나는 모든 도구 호출·에이전트 응답을 SQLite에 "
+        "기록하고, 시간순으로 재생해 사후 분석하는 패턴 시연.\n\n"
+        "**Expected result.** 3명의 에이전트에게 자기소개를 요청 → 각 상호작용이 "
+        "개별 row로 DB에 기록됨 → 슬라이더로 스텝별 재생 가능."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: 논문 Section 5.5 "Utilities"와 Section 7.1 "One Day Life"에서 다루는 시뮬레이션 기록 및 재생 기능을 시연합니다.
 논문에서는 PostgreSQL에 에이전트의 모든 상호작용을 기록하고, GUI를 통해 재생했습니다.
@@ -36,6 +43,11 @@ def render():
     # Record section
     st.subheader("Record Interactions")
     agent_names = ["Agent1 (friendly)", "Agent2 (curious)", "Agent3 (friendly)"]
+
+    if not st.session_state.replay_data:
+        st.warning("⊙ Not yet run. Click **Run Simulation** to record 3 agents' introductions.")
+    else:
+        st.success(f"✓ Simulation complete — {len(st.session_state.replay_data)} steps recorded.")
 
     if st.button("Run Simulation") and ready_to_run(tag="replay_system"):
         with st.spinner("Running agent interactions..."):

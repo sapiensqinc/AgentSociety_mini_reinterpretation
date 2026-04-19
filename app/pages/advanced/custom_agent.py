@@ -8,9 +8,17 @@ from app.security import ready_to_run, cap, sanitize_user_input, show_safe_error
 
 def render():
     st.header("01. Custom Agent")
-    st.caption("Branch: `examples-advanced`")
+    st.caption("Source: paper §3.2, §3.6 · code `agentsociety2/agent/base.py` · mini `agentsociety2_lite/agent/base.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** `AgentBase`의 `ask()` 메서드만 오버라이드해 3가지 추론 전략을 "
+        "비교합니다 — **Specialist**(전문 컨텍스트 주입), **Reflection**(초안→검토→수정), "
+        "**Recursive CoT**(하위 질문 분해 후 종합).\n\n"
+        "**Expected result.** 동일한 질문도 탭마다 답변 스타일이 달라집니다. "
+        "Specialist=도메인 용어 다수, Reflection=자기비판·수정, CoT=단계별 분해."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: 논문 Section 3 전체, 특히 Section 3.2 "Emotion, Needs, and Cognition"과
 Section 3.6 "Workflow"에 해당합니다. 논문에서 에이전트는 감정-욕구-인지의 고정 파이프라인을 가졌지만,

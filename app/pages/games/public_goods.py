@@ -18,9 +18,16 @@ AGENT_PROFILES = [
 
 def render():
     st.header("02. Public Goods Game")
-    st.caption("Branch: `examples-games`")
+    st.caption("Source: behavioral economics (related to paper §4.4 Economic Space) · main `agentsociety2/contrib/env/public_goods.py` · mini `agentsociety2_lite/contrib/public_goods.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** N-agent 공공재 게임 — 각자 기부금을 내면 승수 효과로 증가해 모두에게 "
+        "균등 분배. 무임승차(무기여)가 개인에게 유리하지만 모두가 그러면 집단 손실.\n\n"
+        "**Expected result.** 초기 라운드는 기여율 50%대, 라운드 진행 시 무임승차 학습으로 "
+        "기여율 하락 경향. 이타적 성향 프로필이 많으면 협력 유지."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: 논문 Section 4.4 "Economic Space"에서 다루는 경제적 의사결정의 미시적 버전입니다.
 논문에서는 DSGE 기반 거시경제 모델(기업, 정부, 은행, 세금)을 구현했지만,

@@ -9,9 +9,16 @@ from app.security import ready_to_run, show_safe_error
 
 def render():
     st.header("01. Prisoner's Dilemma")
-    st.caption("Branch: `examples-games`")
+    st.caption("Source: classic game theory (not in paper §7) · main `agentsociety2/contrib/env/prisoners_dilemma.py` · mini `agentsociety2_lite/contrib/prisoners_dilemma.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 2-agent 반복 죄수의 딜레마 — LLM이 Cooperate / Defect 중 선택하고, "
+        "보수 매트릭스(T=5 > R=3 > P=1 > S=0)가 집단 이득과 개인 이득의 갈등을 만듭니다.\n\n"
+        "**Expected result.** 신뢰 성향 에이전트끼리는 협력 수렴 경향, 전략적 성향은 "
+        "배반 축적. 다회전에서는 평판이 형성되어 전략이 조정됩니다."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown("""
 **논문 대응**: 논문 본문에는 게임이론 실험이 포함되어 있지 않습니다. 이 모듈은 v2 코드에서
 새로 추가된 `agentsociety2/contrib/env/` 디렉토리의 게임이론 환경 중 하나입니다.

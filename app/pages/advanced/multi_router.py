@@ -39,9 +39,17 @@ PRESETS = {
 
 def render():
     st.header("02. Multi-Router Comparison")
-    st.caption("Branch: `examples-advanced`")
+    st.caption("Source: paper §5 · code `agentsociety2/env/router_*.py` · mini `agentsociety2_lite/env/router_*.py`")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 같은 질문을 3가지 라우팅 전략으로 처리해 응답·토큰·시간 트레이드오프 비교.\n\n"
+        "- **ReAct** — 생각·행동·관찰 반복 (탐색형 질의에 강함)\n"
+        "- **PlanExecute** — 전체 계획 수립 후 단계 실행 (복잡한 다단계 태스크)\n"
+        "- **CodeGen** — Python 코드 생성·실행 (계산/집계 태스크에 효율적)\n\n"
+        "**Expected result.** 계산 문제는 CodeGen이 토큰 적고 빠름, 탐색은 ReAct가 유리, 다단계는 PlanExecute."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown(DESCRIPTION)
 
     preset = st.selectbox("Preset Questions", ["Custom"] + list(PRESETS.keys()))

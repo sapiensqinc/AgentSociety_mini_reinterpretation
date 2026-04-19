@@ -157,9 +157,19 @@ class ReputationGameEnv(EnvBase):
 
 def render():
     st.header("03. Reputation Game")
-    st.caption("Branch: `examples-games`")
+    st.caption("Source: Nowak & Sigmund (2005), indirect reciprocity · main `agentsociety2/contrib/env/reputation_game.py` · mini `agentsociety2_lite/contrib/simple_social.py` + this page")
 
-    with st.expander("이 예제에 대하여", expanded=False):
+    st.info(
+        "**Purpose.** 간접 호혜성(indirect reciprocity) — 직접 만난 적 없는 상대도 "
+        "평판(good/bad)을 보고 협력 결정. 평가 규범 3종 비교:\n\n"
+        "- **stern_judging** — 나쁜 상대를 배반하는 건 선(good), 좋은 상대를 배반하면 악\n"
+        "- **image_score** — 행위자의 과거 행동만 보고 평가 (단순)\n"
+        "- **simple_standing** — 정당한 배반(=나쁜 상대에 대한 배반)은 평판 유지\n\n"
+        "**Expected result.** stern_judging에서 협력률이 가장 높고 평판 양극화. "
+        "image_score에서 협력이 무너지기 쉬움 (정당한 배반도 나쁘게 판정)."
+    )
+
+    with st.expander("이 예제에 대하여 — 상세", expanded=False):
         st.markdown(DESCRIPTION)
 
     col1, col2, col3 = st.columns(3)
