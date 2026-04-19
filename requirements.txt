@@ -7,8 +7,13 @@
 # Context: litellm supply-chain attack (March 2026) — this project uses
 # google-genai directly to eliminate that risk.
 
-# === Core: LLM Backend ===
+# === Core: LLM Backends ===
+# Track 1 — Gemini remote API (google-genai SDK)
 google-genai>=1.72.0,<2.0.0
+# Track 2 — OpenAI-compatible endpoints (vLLM / HF Router / Mistral / Ollama)
+# httpx is already transitively required by google-genai; pinning it here makes
+# the openai_compat client's dependency explicit.
+httpx>=0.28.0,<1.0.0
 
 # === Core: Data & Config ===
 pydantic>=2.12.0,<3.0.0
